@@ -609,16 +609,16 @@ def afficher_vitrine() -> None:
     c2.metric("Délai", "< 24h", "analyse express")
     c3.metric("Livrable", "PDF", "rapport transmissible")
 
-    st.markdown("""
-    <div class="bs-card" style="border-left: 4px solid #f59e0b;">
-        <h4 style="margin-top:0">Comment ça marche</h4>
-        <ol style="margin:0;padding-left:18px;line-height:1.9; color:#1e293b">
-            <li>Vous déposez le dossier PDF du candidat</li>
-            <li>BailSafe analyse : structure, métadonnées, cohérence financière</li>
-            <li>Vous recevez un rapport PDF clair sous 24h</li>
-        </ol>
-    </div>
-    """, unsafe_allow_html=True)
+   st.markdown("""
+<div class="bs-card" style="border-left: 4px solid #f59e0b;">
+    <h4 style="margin-top:0; color:#1e293b">Comment ça marche</h4>
+    <ol style="margin:0;padding-left:18px;line-height:1.9; color:#1e293b">
+        <li>Vous déposez le dossier PDF du candidat</li>
+        <li>BailSafe analyse : structure, métadonnées, cohérence financière</li>
+        <li>Vous recevez un rapport PDF clair sous 24h</li>
+    </ol>
+</div>
+""", unsafe_allow_html=True)
 
     st.markdown("### Simulateur de gain")
     n = st.slider("Dossiers analysés par mois", 1, 20, 5)
