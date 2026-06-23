@@ -608,18 +608,18 @@ def afficher_vitrine() -> None:
     c1.metric("Prix", "20 €", "par dossier")
     c2.metric("Délai", "< 24h", "analyse express")
     c3.metric("Livrable", "PDF", "rapport transmissible")
+st.markdown("### Simulateur de gain")
+    n = st.slider("Dossiers analysés par mois", 1, 20, 5)
+    minutes, risk, value = build_gain_simulation(n)
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Temps économisé", f"{minutes} min")
+    c2.metric("Risque réduit (est.)", f"{risk}%")
+    c3.metric("Valeur protégée (est.)", f"{value} €")
 
-   st.markdown("""
-<div class="bs-card" style="border-left: 4px solid #f59e0b;">
-    <h4 style="margin-top:0; color:#1e293b">Comment ça marche</h4>
-    <ol style="margin:0;padding-left:18px;line-height:1.9; color:#1e293b">
-        <li>Vous déposez le dossier PDF du candidat</li>
-        <li>BailSafe analyse : structure, métadonnées, cohérence financière</li>
-        <li>Vous recevez un rapport PDF clair sous 24h</li>
-    </ol>
-</div>
-""", unsafe_allow_html=True)
-
+    st.markdown("### Une question ?")
+    user_msg = st.text_input("Posez votre question", placeholder="Combien ça coûte ?")
+    if user_msg:
+        st.info(build_ai_reply(user_msg))
     st.markdown("### Simulateur de gain")
     n = st.slider("Dossiers analysés par mois", 1, 20, 5)
     minutes, risk, value = build_gain_simulation(n)
