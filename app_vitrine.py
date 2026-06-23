@@ -612,7 +612,7 @@ def afficher_vitrine() -> None:
     st.markdown("""
     <div class="bs-card" style="border-left: 4px solid #f59e0b;">
         <h4 style="margin-top:0">Comment ça marche</h4>
-        <ol style="margin:0;padding-left:18px;line-height:1.9">
+        <ol style="margin:0;padding-left:18px;line-height:1.9; color:#1e293b">
             <li>Vous déposez le dossier PDF du candidat</li>
             <li>BailSafe analyse : structure, métadonnées, cohérence financière</li>
             <li>Vous recevez un rapport PDF clair sous 24h</li>
