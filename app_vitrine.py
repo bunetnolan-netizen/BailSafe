@@ -608,7 +608,7 @@ def afficher_vitrine() -> None:
     c1.metric("Prix", "20 €", "par dossier")
     c2.metric("Délai", "< 24h", "analyse express")
     c3.metric("Livrable", "PDF", "rapport transmissible")
-st.markdown("### Simulateur de gain")
+    st.markdown("### Simulateur de gain")
     n = st.slider("Dossiers analysés par mois", 1, 20, 5)
     minutes, risk, value = build_gain_simulation(n)
     c1, c2, c3 = st.columns(3)
@@ -620,16 +620,7 @@ st.markdown("### Simulateur de gain")
     user_msg = st.text_input("Posez votre question", placeholder="Combien ça coûte ?")
     if user_msg:
         st.info(build_ai_reply(user_msg))
-    st.markdown("### Simulateur de gain")
-    n = st.slider("Dossiers analysés par mois", 1, 20, 5)
-    minutes, risk, value = build_gain_simulation(n)
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Temps économisé", f"{minutes} min")
-    c2.metric("Risque réduit (est.)", f"{risk}%")
-    c3.metric("Valeur protégée (est.)", f"{value} €")
-
-    st.markdown("### Une question ?")
-    user_msg = st.text_input("Posez votre question", placeholder="Combien ça coûte ?")
+   
     if user_msg:
         st.info(build_ai_reply(user_msg))
 
