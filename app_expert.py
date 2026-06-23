@@ -49,7 +49,14 @@ def afficher_interface_expert() -> None:
     </div>
     """, unsafe_allow_html=True)
 
-    secrets = charger_secrets()
+    try:
+    secrets = AppSecrets(
+        email_expediteur=st.secrets["EMAIL_EXPEDITEUR"],
+        mot_de_passe_email=st.secrets["MOT_DE_PASSE_EMAIL"],
+    )
+except Exception:
+    secrets = AppSecrets(email_expediteur="", mot_de_passe_email="")
+    st.warning("⚠️ Secrets non configurés — mode démo.")
 
     with st.expander("💸 Message de paiement client (copier-coller)"):
         st.code(
