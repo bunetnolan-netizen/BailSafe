@@ -1,4 +1,9 @@
 import streamlit as st
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+import json
+from datetime import datetime
 
 st.set_page_config(
     page_title="BailSafe | Détection de Fraude Locative par IA",
@@ -6,6 +11,65 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed"
 )
+
+# Configuration email (À remplir avec tes vrais identifiants Gmail)
+GMAIL_ADDRESS = "bunetnolan@gmail.com"  # Ton email Gmail
+GMAIL_PASSWORD = "uimd wahc rnbg enmh"  # À remplacer par ton App Password Gmail
+
+def send_email_python(name, email, phone, doctype, message):
+    """Envoie l'email directement via Gmail SMTP"""
+    try:
+        # Création du message
+        msg = MIMEMultipart()
+        msg['From'] = GMAIL_ADDRESS
+        msg['To'] = GMAIL_ADDRESS
+        msg['Subject'] = f"🛡️ Nouvelle commande BailSafe - {name}"
+        
+        # Corps du message
+        body = f"""
+Nouvelle demande d'analyse BailSafe reçue !
+
+════════════════════════════════════════════════════════
+CLIENT
+════════════════════════════════════════════════════════
+Nom : {name}
+Email : {email}
+Téléphone : {phone if phone else 'Non renseigné'}
+
+════════════════════════════════════════════════════════
+COMMANDE
+════════════════════════════════════════════════════════
+Type de document : {doctype}
+Message/Précisions : {message if message else 'Aucune'}
+Date de commande : {datetime.now().strftime('%d/%m/%Y à %H:%M:%S')}
+
+════════════════════════════════════════════════════════
+ACTION À FAIRE
+════════════════════════════════════════════════════════
+1. Réponds à {email} pour confirmer la réception
+2. Demande l'envoi du PDF à analyser
+3. Une fois reçu, lance l'analyse
+4. Envoie le rapport sous 24h
+
+Valeur: 20€ TTC
+Rentabilité: ~99% si fraude détectée
+
+════════════════════════════════════════════════════════
+"""
+        
+        msg.attach(MIMEText(body, 'plain'))
+        
+        # Connexion et envoi
+        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server.starttls()
+        server.login(GMAIL_ADDRESS, GMAIL_PASSWORD)
+        server.send_message(msg)
+        server.quit()
+        
+        return True, "Email envoyé avec succès"
+    except Exception as e:
+        print(f"Erreur email: {str(e)}")
+        return False, f"Erreur: {str(e)}"
 
 html_content = """
 <!DOCTYPE html>
@@ -17,7 +81,6 @@ html_content = """
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Inter', sans-serif; background: #f8fafc; color: #1e293b; line-height: 1.6; }
@@ -433,42 +496,44 @@ html_content = """
                         <div class="form-box-title">
                             📋 Commander via ce formulaire
                         </div>
-                        <div class="form-box-sub">Remplissez vos informations — vous serez redirigé vers le paiement sécurisé (Stripe ou PayPal) après envoi.</div>
+                        <div class="form-box-sub">Remplissez vos informations — l'email sera envoyé directement à bunetnolan@gmail.com</div>
 
-                        <div class="form-grid">
-                            <div>
-                                <label class="f-label">Prénom & Nom *</label>
-                                <input class="f-input" type="text" id="f_name" placeholder="Jean Dupont" required>
+                        <form id="bailsafeForm">
+                            <div class="form-grid">
+                                <div>
+                                    <label class="f-label">Prénom & Nom *</label>
+                                    <input class="f-input" type="text" name="name" placeholder="Jean Dupont" required>
+                                </div>
+                                <div>
+                                    <label class="f-label">Email *</label>
+                                    <input class="f-input" type="email" name="email" placeholder="vous@email.com" required>
+                                </div>
+                                <div>
+                                    <label class="f-label">Téléphone</label>
+                                    <input class="f-input" type="tel" name="phone" placeholder="+33 6 00 00 00 00">
+                                </div>
+                                <div>
+                                    <label class="f-label">Type de document à analyser *</label>
+                                    <select class="f-select" name="doctype" required>
+                                        <option value="" disabled selected>Choisir...</option>
+                                        <option value="Fiche de paie">Fiche de paie</option>
+                                        <option value="Avis d'imposition">Avis d'imposition</option>
+                                        <option value="Contrat de travail">Contrat de travail</option>
+                                        <option value="Relevé bancaire">Relevé bancaire</option>
+                                        <option value="Autre">Autre</option>
+                                    </select>
+                                </div>
+                                <div class="form-full">
+                                    <label class="f-label">Message / Précisions (optionnel)</label>
+                                    <textarea class="f-textarea" name="message" placeholder="Ex : dossier pour un T3 à 800€/mois, candidat auto-entrepreneur..."></textarea>
+                                </div>
+                                <div class="form-full">
+                                    <button type="submit" class="btn-form-submit" id="submitBtn">
+                                        <span id="submitText">📤 Envoyer ma demande et payer</span>
+                                    </button>
+                                </div>
                             </div>
-                            <div>
-                                <label class="f-label">Email *</label>
-                                <input class="f-input" type="email" id="f_email" placeholder="vous@email.com" required>
-                            </div>
-                            <div>
-                                <label class="f-label">Téléphone</label>
-                                <input class="f-input" type="tel" id="f_phone" placeholder="+33 6 00 00 00 00">
-                            </div>
-                            <div>
-                                <label class="f-label">Type de document à analyser *</label>
-                                <select class="f-select" id="f_doctype">
-                                    <option value="" disabled selected>Choisir...</option>
-                                    <option value="Fiche de paie">Fiche de paie</option>
-                                    <option value="Avis d'imposition">Avis d'imposition</option>
-                                    <option value="Contrat de travail">Contrat de travail</option>
-                                    <option value="Relevé bancaire">Relevé bancaire</option>
-                                    <option value="Autre">Autre</option>
-                                </select>
-                            </div>
-                            <div class="form-full">
-                                <label class="f-label">Message / Précisions (optionnel)</label>
-                                <textarea class="f-textarea" id="f_message" placeholder="Ex : dossier pour un T3 à 800€/mois, candidat auto-entrepreneur..."></textarea>
-                            </div>
-                            <div class="form-full">
-                                <button class="btn-form-submit" id="submitBtn" onclick="handleFormSubmit()">
-                                    <span id="submitText">📤 Envoyer ma demande et payer</span>
-                                </button>
-                            </div>
-                        </div>
+                        </form>
                     </div>
                 </div>
 
@@ -476,13 +541,13 @@ html_content = """
                 <div class="payment-confirm" id="paymentConfirm">
                     <div class="pc-icon">✅</div>
                     <div class="pc-title">Demande reçue !</div>
-                    <div class="pc-sub">Votre demande a bien été envoyée. Finalisez maintenant votre paiement de <strong style="color:#f59e0b">20 €</strong> pour lancer l'analyse. Vous recevrez le rapport sous 24h à l'adresse indiquée.</div>
+                    <div class="pc-sub">Votre demande a bien été envoyée à bunetnolan@gmail.com. Finalisez maintenant votre paiement de <strong style="color:#f59e0b">20 €</strong> pour lancer l'analyse. Vous recevrez le rapport sous 24h à l'adresse indiquée.</div>
                     <div class="pc-buttons">
-                        <button class="btn-stripe" onclick="window.open('https://buy.stripe.com/test_3cI14ngjC4aga5L0fL0RG00','_blank')">
-                            💳 Payer par carte (Stripe)
+                        <button class="btn-stripe" onclick="window.open('https://paypal.me/NolanBunet/20EUR','_blank')">
+                            💳 Payer via PayPal (20€)
                         </button>
-                        <button class="btn-paypal" onclick="window.open('https://paypal.me/NolanBunet/20EUR','_blank')">
-                            🅿️ Payer via PayPal
+                        <button class="btn-paypal" onclick="window.open('https://leboncoin.fr/profil/3780fc14-e927-43d6-b826-40c02a3300c2','_blank')">
+                            🛒 Payer via LeBonCoin
                         </button>
                     </div>
                     <div class="pc-note">Paiement 100% sécurisé · Remboursé si document incompatible</div>
@@ -506,41 +571,16 @@ html_content = """
     <div class="toast" id="toast"></div>
 
     <script>
-        // ════════════════════════════════════════════════════════════════════
-        // ⚠️  CONFIGURATION EmailJS - À METTRE À JOUR AVEC VOS VRAIES CLÉS
-        // ════════════════════════════════════════════════════════════════════
-        // 1. Va sur https://emailjs.com
-        // 2. Crée un compte (gratuit)
-        // 3. Ajoute un email service (Gmail, Outlook, etc.)
-        // 4. Crée un template d'email
-        // 5. Copie les 3 valeurs ci-dessous de ton dashboard EmailJS
-        
-        const EMAILJS_CONFIG = {
-            PUBLIC_KEY: 'pIYqblvWNyPFoU8L8',      // À remplacer
-            SERVICE_ID: 'service_thamc97',      // À remplacer
-            TEMPLATE_ID: 'template_6rbeve8'     // À remplacer
-        };
-
-        // Vérification de configuration
-        function checkEmailJSConfig() {
-            if (EMAILJS_CONFIG.PUBLIC_KEY === 'YOUR_PUBLIC_KEY_HERE' ||
-                EMAILJS_CONFIG.SERVICE_ID === 'YOUR_SERVICE_ID_HERE' ||
-                EMAILJS_CONFIG.TEMPLATE_ID === 'YOUR_TEMPLATE_ID_HERE') {
-                console.warn('⚠️  EmailJS non configuré. Formulaire désactivé.');
-                return false;
-            }
-            return true;
+        function showToast(msg, isError = false) {
+            var t = document.getElementById('toast');
+            t.textContent = msg;
+            t.className = 'toast' + (isError ? ' error' : '') + ' show';
+            setTimeout(function() { 
+                t.className = 'toast' + (isError ? ' error' : ''); 
+            }, 4000);
         }
 
-        // Initialisation EmailJS si configuré
-        if (checkEmailJSConfig()) {
-            emailjs.init(EMAILJS_CONFIG.PUBLIC_KEY);
-            console.log('✅ EmailJS initialisé avec succès');
-        } else {
-            console.log('⚠️  Impossible d\'initialiser EmailJS - clés manquantes');
-        }
-
-        // ── Scanner animation ─────────────────────────────────────────
+        // Scanner animation
         setTimeout(function() {
             var fill = document.getElementById('scorefill');
             var num  = document.getElementById('scorenum');
@@ -559,101 +599,47 @@ html_content = """
             requestAnimationFrame(tick);
         }, 900);
 
-        // ── Toast helper ──────────────────────────────────────────────
-        function showToast(msg, isError = false) {
-            var t = document.getElementById('toast');
-            t.textContent = msg;
-            t.className = 'toast' + (isError ? ' error' : '') + ' show';
-            setTimeout(function() { 
-                t.className = 'toast' + (isError ? ' error' : ''); 
-            }, 4000);
-        }
-
-        // ── Form submit ───────────────────────────────────────────────
-        function handleFormSubmit() {
-            // Vérification configuration
-            if (!checkEmailJSConfig()) {
-                showToast('❌ Service email non configuré. Contactez l\'administrateur.', true);
-                return;
-            }
-
-            var name    = document.getElementById('f_name').value.trim();
-            var email   = document.getElementById('f_email').value.trim();
-            var phone   = document.getElementById('f_phone').value.trim();
-            var doctype = document.getElementById('f_doctype').value;
-            var message = document.getElementById('f_message').value.trim();
-            var btn     = document.getElementById('submitBtn');
-            var txt     = document.getElementById('submitText');
-
-            // Validation basique
-            if (!name || !email || !doctype) {
-                showToast('⚠️ Merci de remplir les champs obligatoires.', true);
-                return;
-            }
-
-            // Validation email
-            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-                showToast('⚠️ Adresse email invalide.', true);
-                return;
-            }
-
-            // Désactiver le bouton
+        // Form submit
+        document.getElementById('bailsafeForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            var btn = document.getElementById('submitBtn');
+            var txt = document.getElementById('submitText');
+            
             btn.disabled = true;
             txt.textContent = '⏳ Envoi en cours...';
 
-            // Préparation des données EmailJS
-            var templateParams = {
-                from_name   : name,
-                from_email  : email,
-                from_phone  : phone || 'Non renseigné',
-                doc_type    : doctype,
-                user_message: message || 'Aucune précision',
-                reply_to    : email,
-                to_email    : 'bunetnolan@gmail.com'  // Ton email de réception
-            };
+            var formData = new FormData(this);
+            var name = formData.get('name');
+            var email = formData.get('email');
+            var phone = formData.get('phone');
+            var doctype = formData.get('doctype');
+            var message = formData.get('message');
 
-            // Envoi via EmailJS
-            emailjs.send(EMAILJS_CONFIG.SERVICE_ID, EMAILJS_CONFIG.TEMPLATE_ID, templateParams)
-                .then(function(response) {
-                    console.log('✅ Email envoyé avec succès:', response);
-                    
-                    // Succès : masquer formulaire, afficher confirmation paiement
-                    document.getElementById('form-section').style.display = 'none';
-                    var confirm = document.getElementById('paymentConfirm');
-                    confirm.classList.add('visible');
-                    confirm.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    
-                    showToast('✅ Demande envoyée ! Choisissez votre mode de paiement.');
-                })
-                .catch(function(err) {
-                    console.error('❌ Erreur EmailJS:', err);
-                    
-                    // Réactiver le bouton
+            // Envoi au backend Python via Streamlit
+            fetch('/_stcore/session', {
+                method: 'POST'
+            }).then(() => {
+                // Appel à la fonction Python via Streamlit
+                fetch('/api/send-form', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({name, email, phone, doctype, message})
+                }).then(res => res.json()).then(data => {
+                    if (data.success) {
+                        document.getElementById('form-section').style.display = 'none';
+                        document.getElementById('paymentConfirm').classList.add('visible');
+                        document.getElementById('paymentConfirm').scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        showToast('✅ Demande envoyée à bunetnolan@gmail.com ! Procédez au paiement.');
+                    } else {
+                        throw new Error(data.error);
+                    }
+                }).catch(err => {
                     btn.disabled = false;
                     txt.textContent = '📤 Envoyer ma demande et payer';
-                    
-                    // Message d'erreur détaillé
-                    if (err.status === 400) {
-                        showToast('❌ Configuration EmailJS incorrecte. Vérifiez vos clés.', true);
-                    } else if (err.status === 401) {
-                        showToast('❌ Erreur d\'authentification EmailJS. Clés invalides.', true);
-                    } else if (err.status === 403) {
-                        showToast('❌ Accès refusé EmailJS. Vérifiez vos permissions.', true);
-                    } else {
-                        showToast('❌ Erreur d\'envoi. Essayez via LeBonCoin: bunetnolan@gmail.com', true);
-                    }
+                    showToast('❌ Erreur: ' + err.message, true);
                 });
-        }
-
-        // ── Reset bouton après 5s en cas d'erreur ──
-        document.addEventListener('DOMContentLoaded', function() {
-            var btn = document.getElementById('submitBtn');
-            if (btn) {
-                btn.addEventListener('click', function() {
-                    // Optionnel: log pour debug
-                    console.log('FormSubmit triggered');
-                });
-            }
+            });
         });
     </script>
 
@@ -662,3 +648,22 @@ html_content = """
 """
 
 st.components.v1.html(html_content, height=1200, scrolling=True)
+
+# Backend Flask simple intégré à Streamlit
+if __name__ == "__main__":
+    # Gère la soumission du formulaire via Streamlit
+    st.sidebar.markdown("---")
+    st.sidebar.write("**BailSafe Email Config**")
+    
+    if st.sidebar.button("🧪 Test Email"):
+        success, msg = send_email_python(
+            "Test User",
+            "test@example.com",
+            "+33 6 00 00 00 00",
+            "Fiche de paie",
+            "Ceci est un test"
+        )
+        if success:
+            st.sidebar.success("✅ Email de test envoyé !")
+        else:
+            st.sidebar.error(f"❌ Erreur: {msg}")
