@@ -540,6 +540,21 @@ html_content = """
             t.className = 'toast' + (isError ? ' error' : '') + ' show';
             setTimeout(function() { t.className = 'toast' + (isError ? ' error' : ''); }, 4000);
         }
+        emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, { ... })
+        .then(function() {
+           // ← ajoute ça : envoi auto-reply au client
+         return emailjs.send(EMAILJS_SERVICE_ID, 'template_t4ep7ax', {
+            from_name   : name,
+            from_email  : email,
+            doc_type    : doctype,
+            reply_to    : email
+                });
+            })
+       .then(function() {
+           // affichage confirmation paiement (code existant)
+                document.getElementById('form-section').style.display = 'none';
+             ...
+          })
 
         // ── Form submit ───────────────────────────────────────────────
         function handleFormSubmit() {
