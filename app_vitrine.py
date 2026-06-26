@@ -478,7 +478,7 @@ html_content = """
                     <div class="pc-title">Demande reçue !</div>
                     <div class="pc-sub">Votre demande a bien été envoyée. Finalisez maintenant votre paiement de <strong style="color:#f59e0b">20 €</strong> pour lancer l'analyse. Vous recevrez le rapport sous 24h à l'adresse indiquée.</div>
                     <div class="pc-buttons">
-                        <button class="btn-stripe" onclick="window.open('VOTRE_LIEN_STRIPE_ICI','_blank')">
+                        <button class="btn-stripe" onclick="window.open('https://buy.stripe.com/test_3cI14ngjC4aga5L0fL0RG00','_blank')">
                             💳 Payer par carte (Stripe)
                         </button>
                         <button class="btn-paypal" onclick="window.open('VOTRE_LIEN_PAYPAL_ICI','_blank')">
