@@ -481,7 +481,7 @@ html_content = """
                         <button class="btn-stripe" onclick="window.open('https://buy.stripe.com/test_3cI14ngjC4aga5L0fL0RG00','_blank')">
                             💳 Payer par carte (Stripe)
                         </button>
-                        <button class="btn-paypal" onclick="window.open('paypal.me/NolanBunet/20EUR','_blank')">
+                        <button class="btn-paypal" onclick="window.open('https://paypal.me/NolanBunet/20EUR','_blank')">
                             🅿️ Payer via PayPal
                         </button>
                     </div>
@@ -499,20 +499,46 @@ html_content = """
             <span class="fa-solid fa-shield-halved" style="color:#f59e0b;margin-right:6px"></span>Bail<span class="mark">Safe</span>
         </div>
         <p>© 2026 BailSafe. La détection par IA est un outil d'aide à la décision. Le propriétaire reste le seul décideur final.</p>
-        <p style="margin-top:8px;font-size:11px;color:#64748b">bunetnolan@icloud.com</p>
+        <p style="margin-top:8px;font-size:11px;color:#64748b">bunetnolan@gmail.com</p>
     </footer>
 
     <!-- TOAST -->
     <div class="toast" id="toast"></div>
 
     <script>
-        // ── EmailJS init ──────────────────────────────────────────────
-        // ⚠️  REMPLACE ces 3 valeurs par tes vraies clés EmailJS
-        var EMAILJS_PUBLIC_KEY  = 'pIYqblvWNyPFoU8L8';   // Account > API Keys
-        var EMAILJS_SERVICE_ID  = 'service_6e28n05';   // Email Services
-        var EMAILJS_TEMPLATE_ID = 'template_6rbeve8';  // Email Templates
+        // ════════════════════════════════════════════════════════════════════
+        // ⚠️  CONFIGURATION EmailJS - À METTRE À JOUR AVEC VOS VRAIES CLÉS
+        // ════════════════════════════════════════════════════════════════════
+        // 1. Va sur https://emailjs.com
+        // 2. Crée un compte (gratuit)
+        // 3. Ajoute un email service (Gmail, Outlook, etc.)
+        // 4. Crée un template d'email
+        // 5. Copie les 3 valeurs ci-dessous de ton dashboard EmailJS
+        
+        const EMAILJS_CONFIG = {
+            PUBLIC_KEY: 'YOUR_PUBLIC_KEY_HERE',      // À remplacer
+            SERVICE_ID: 'YOUR_SERVICE_ID_HERE',      // À remplacer
+            TEMPLATE_ID: 'YOUR_TEMPLATE_ID_HERE'     // À remplacer
+        };
 
-        emailjs.init(EMAILJS_PUBLIC_KEY);
+        // Vérification de configuration
+        function checkEmailJSConfig() {
+            if (EMAILJS_CONFIG.PUBLIC_KEY === 'YOUR_PUBLIC_KEY_HERE' ||
+                EMAILJS_CONFIG.SERVICE_ID === 'YOUR_SERVICE_ID_HERE' ||
+                EMAILJS_CONFIG.TEMPLATE_ID === 'YOUR_TEMPLATE_ID_HERE') {
+                console.warn('⚠️  EmailJS non configuré. Formulaire désactivé.');
+                return false;
+            }
+            return true;
+        }
+
+        // Initialisation EmailJS si configuré
+        if (checkEmailJSConfig()) {
+            emailjs.init(EMAILJS_CONFIG.PUBLIC_KEY);
+            console.log('✅ EmailJS initialisé avec succès');
+        } else {
+            console.log('⚠️  Impossible d\'initialiser EmailJS - clés manquantes');
+        }
 
         // ── Scanner animation ─────────────────────────────────────────
         setTimeout(function() {
@@ -534,30 +560,23 @@ html_content = """
         }, 900);
 
         // ── Toast helper ──────────────────────────────────────────────
-        function showToast(msg, isError) {
+        function showToast(msg, isError = false) {
             var t = document.getElementById('toast');
             t.textContent = msg;
             t.className = 'toast' + (isError ? ' error' : '') + ' show';
-            setTimeout(function() { t.className = 'toast' + (isError ? ' error' : ''); }, 4000);
+            setTimeout(function() { 
+                t.className = 'toast' + (isError ? ' error' : ''); 
+            }, 4000);
         }
-        emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, { ... })
-        .then(function() {
-           // ← ajoute ça : envoi auto-reply au client
-         return emailjs.send(EMAILJS_SERVICE_ID, 'template_t4ep7ax', {
-            from_name   : name,
-            from_email  : email,
-            doc_type    : doctype,
-            reply_to    : email
-                });
-            })
-       .then(function() {
-           // affichage confirmation paiement (code existant)
-                document.getElementById('form-section').style.display = 'none';
-             ...
-          })
 
         // ── Form submit ───────────────────────────────────────────────
         function handleFormSubmit() {
+            // Vérification configuration
+            if (!checkEmailJSConfig()) {
+                showToast('❌ Service email non configuré. Contactez l\'administrateur.', true);
+                return;
+            }
+
             var name    = document.getElementById('f_name').value.trim();
             var email   = document.getElementById('f_email').value.trim();
             var phone   = document.getElementById('f_phone').value.trim();
@@ -571,39 +590,71 @@ html_content = """
                 showToast('⚠️ Merci de remplir les champs obligatoires.', true);
                 return;
             }
+
+            // Validation email
             if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
                 showToast('⚠️ Adresse email invalide.', true);
                 return;
             }
 
+            // Désactiver le bouton
             btn.disabled = true;
             txt.textContent = '⏳ Envoi en cours...';
 
+            // Préparation des données EmailJS
             var templateParams = {
                 from_name   : name,
                 from_email  : email,
                 from_phone  : phone || 'Non renseigné',
                 doc_type    : doctype,
                 user_message: message || 'Aucune précision',
-                reply_to    : email
+                reply_to    : email,
+                to_email    : 'bunetnolan@gmail.com'  // Ton email de réception
             };
 
-            emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, templateParams)
-                .then(function() {
+            // Envoi via EmailJS
+            emailjs.send(EMAILJS_CONFIG.SERVICE_ID, EMAILJS_CONFIG.TEMPLATE_ID, templateParams)
+                .then(function(response) {
+                    console.log('✅ Email envoyé avec succès:', response);
+                    
                     // Succès : masquer formulaire, afficher confirmation paiement
                     document.getElementById('form-section').style.display = 'none';
                     var confirm = document.getElementById('paymentConfirm');
                     confirm.classList.add('visible');
                     confirm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    
                     showToast('✅ Demande envoyée ! Choisissez votre mode de paiement.');
                 })
                 .catch(function(err) {
+                    console.error('❌ Erreur EmailJS:', err);
+                    
+                    // Réactiver le bouton
                     btn.disabled = false;
                     txt.textContent = '📤 Envoyer ma demande et payer';
-                    showToast('❌ Erreur d\'envoi. Réessaie ou contacte bunetnolan@icloud.com', true);
-                    console.error('EmailJS error:', err);
+                    
+                    // Message d'erreur détaillé
+                    if (err.status === 400) {
+                        showToast('❌ Configuration EmailJS incorrecte. Vérifiez vos clés.', true);
+                    } else if (err.status === 401) {
+                        showToast('❌ Erreur d\'authentification EmailJS. Clés invalides.', true);
+                    } else if (err.status === 403) {
+                        showToast('❌ Accès refusé EmailJS. Vérifiez vos permissions.', true);
+                    } else {
+                        showToast('❌ Erreur d\'envoi. Essayez via LeBonCoin: bunetnolan@gmail.com', true);
+                    }
                 });
         }
+
+        // ── Reset bouton après 5s en cas d'erreur ──
+        document.addEventListener('DOMContentLoaded', function() {
+            var btn = document.getElementById('submitBtn');
+            if (btn) {
+                btn.addEventListener('click', function() {
+                    // Optionnel: log pour debug
+                    console.log('FormSubmit triggered');
+                });
+            }
+        });
     </script>
 
 </body>
