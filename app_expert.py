@@ -57,11 +57,24 @@ def afficher_interface_expert() -> None:
         st.info("Déposez un fichier PDF pour démarrer l'analyse.")
         return
 
-    with st.spinner("Extraction et analyse du document…"):
-        analysis = extract_pdf_content(fichier_pdf)
+    # Gestion de l'état : on évite de re-parser le PDF à chaque interaction UI
+    if "current_pdf_name" not in st.session_state or st.session_state["current_pdf_name"] != fichier_pdf.name:
+        with st.spinner("Extraction et analyse du document en cours…"):
+            st.session_state["analysis"] = extract_pdf_content(fichier_pdf)
+            st.session_state["current_pdf_name"] = fichier_pdf.name
+            # Nettoyage des anciens résultats si on change de fichier
+            st.session_state.pop("forensic_result", None)
+
+    analysis = st.session_state["analysis"]
 
     if analysis.error:
         st.warning(f"⚠️ Lecture partielle : {analysis.error}")
+
+    # Calculs lourds ou statiques effectués avant l'affichage des onglets
+    if "forensic_result" not in st.session_state:
+        st.session_state["forensic_result"] = analyser_forensic(analysis)
+    
+    forensic = st.session_state["forensic_result"]
 
     tab1, tab2, tab3 = st.tabs([
         "📊 Cohérence financière",
@@ -77,7 +90,8 @@ def afficher_interface_expert() -> None:
                 "⚠️ Aucun texte numérique détecté — PDF scanné ou photo. "
                 "Vérification visuelle requise."
             )
-            st.session_state["math_result"] = MathResult(True, 0, 1, 0, 0, 0, False)
+            math = MathResult(True, 0, 1, 0, 0, 0, False)
+            st.session_state["math_result"] = math
         else:
             st.subheader("Extraction automatique")
             net_auto, cumul_auto = construire_math_result(analysis.texte)
@@ -112,9 +126,7 @@ def afficher_interface_expert() -> None:
 
     with tab2:
         st.subheader("Analyse forensique complète")
-        forensic = analyser_forensic(analysis)
-        st.session_state["forensic_result"] = forensic
-
+        
         col_a, col_b = st.columns(2)
         with col_a:
             st.markdown("**Intégrité du fichier**")
@@ -161,7 +173,7 @@ def afficher_interface_expert() -> None:
         forensic_r = st.session_state.get("forensic_result")
 
         if math_r is None or forensic_r is None:
-            st.warning("Complétez d'abord les onglets précédents.")
+            st.warning("Veuillez d'abord consulter les onglets précédents pour finaliser l'analyse.")
             return
 
         verdict = calculer_verdict(math_r, forensic_r)
@@ -211,13 +223,14 @@ def afficher_interface_expert() -> None:
         with c_send:
             if st.button("🚀 Envoyer le rapport par email"):
                 if not is_valid_email(email_client):
-                    st.error("Adresse email invalide.")
+                    st.error("Veuillez saisir une adresse email valide avant d'envoyer.")
                 else:
-                    ok, msg = envoyer_rapport(secrets, email_client, pdf_bytes, filename)
-                    if ok:
-                        st.success(msg)
-                    else:
-                        st.error(msg)
+                    with st.spinner("Envoi du rapport en cours..."):
+                        ok, msg = envoyer_rapport(secrets, email_client, pdf_bytes, filename)
+                        if ok:
+                            st.success(msg)
+                        else:
+                            st.error(msg)
 
         with c_dl:
             st.download_button(
