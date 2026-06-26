@@ -14,24 +14,33 @@
             box-sizing: border-box;
         }
 
+        html {
+            scroll-behavior: smooth;
+        }
+
         body {
             font-family: 'Inter', sans-serif;
             background: #f8fafc;
             color: #1e293b;
             line-height: 1.6;
+            margin: 0 !important;
+            padding: 0 !important;
         }
 
-        .smooth {
-            scroll-behavior: smooth;
+        /* Streamlit iframe reset */
+        :root {
+            --background: #f8fafc;
         }
+
+        /* scroll handled on html element */
 
         /* NAV */
         nav {
-            position: fixed;
+            position: sticky;
             top: 0;
             width: 100%;
             z-index: 50;
-            background: rgba(15, 23, 42, 0.95);
+            background: rgba(15, 23, 42, 0.98);
             backdrop-filter: blur(10px);
             border-bottom: 1px solid rgba(148, 163, 184, 0.1);
         }
@@ -107,7 +116,7 @@
         /* HERO */
         .hero {
             background: #0f172a;
-            padding: 120px 24px 80px;
+            padding: 80px 24px 80px;
             text-align: center;
             position: relative;
             overflow: hidden;
@@ -836,7 +845,7 @@
     </style>
 </head>
 
-<body class="smooth">
+<body>
 
     <!-- NAV -->
     <nav>
@@ -1123,13 +1132,41 @@
         </div>
         <p>© 2026 BailSafe. La détection par IA est un outil d'aide à la décision. Le propriétaire reste le seul
             décideur final.</p>
-        <p style="margin-top:8px;font-size:11px;color:#64748b">bunetnolan@icloud.com</p>
+        <p style="margin-top:8px;font-size:11px;color:#64748b">bunetnolan@gmail.com</p>
     </footer>
 
     <script>
         function openLink(url) {
             window.open(url, '_blank');
         }
+
+        // Fix anchor scroll offset for sticky nav
+        document.querySelectorAll('a[href^="#"]').forEach(function(anchor) {
+            anchor.addEventListener('click', function(e) {
+                e.preventDefault();
+                var target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    var navH = document.querySelector('nav') ? document.querySelector('nav').offsetHeight : 0;
+                    var top = target.getBoundingClientRect().top + window.pageYOffset - navH;
+                    window.scrollTo({ top: top, behavior: 'smooth' });
+                }
+            });
+        });
+
+        // Smooth scroll for scrollIntoView buttons (patch for Streamlit iframe)
+        document.querySelectorAll('button[onclick*="scrollIntoView"]').forEach(function(btn) {
+            var match = btn.getAttribute('onclick').match(/getElementById\('([^']+)'\)/);
+            if (match) {
+                btn.addEventListener('click', function() {
+                    var el = document.getElementById(match[1]);
+                    if (el) {
+                        var navH = document.querySelector('nav') ? document.querySelector('nav').offsetHeight : 0;
+                        var top = el.getBoundingClientRect().top + window.pageYOffset - navH;
+                        window.scrollTo({ top: top, behavior: 'smooth' });
+                    }
+                });
+            }
+        });
 
         setTimeout(function () {
             var fill = document.getElementById('scorefill');
