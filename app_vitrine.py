@@ -1,665 +1,1155 @@
-"""
-BailSafe — Vitrine publique (page principale)
-Lancer avec : streamlit run app_vitrine.py
-"""
-
-from __future__ import annotations
-
-import re
-import smtplib
-import unicodedata
-import hashlib
-import struct
-import zlib
-from dataclasses import dataclass
-from email import encoders
-from email.mime.base import MIMEBase
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-from typing import Optional
-
-import pdfplumber
-import streamlit as st
-from fpdf import FPDF
-from fpdf.enums import XPos, YPos
-
-# ---------------------------------------------------------------------------
-# Configuration
-# ---------------------------------------------------------------------------
-
-EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
-PDF_MAX_BYTES = 20 * 1024 * 1024  # 20 Mo max
-
-LOGICIELS_SUSPECTS = frozenset([
-    "photoshop", "canva", "ilovepdf", "illustrator", "gimp",
-    "pixlr", "paint.net", "affinity", "inkscape", "picsart",
-])
-
-# ---------------------------------------------------------------------------
-# Dataclasses
-# ---------------------------------------------------------------------------
-
-@dataclass(frozen=True)
-class AppSecrets:
-    email_expediteur: str
-    mot_de_passe_email: str
-
-@dataclass(frozen=True)
-class PdfAnalysis:
-    texte: str
-    metadata: dict
-    hash_sha256: str
-    xref_count: int
-    stream_count: int
-    font_names: list[str]
-    javascript_present: bool
-    embedded_files: bool
-    error: Optional[str]
-
-@dataclass(frozen=True)
-class ForensicResult:
-    fraude_meta: bool
-    logiciels_detectes: list[str]
-    javascript_suspect: bool
-    fichiers_incorpores: bool
-    hash_sha256: str
-    xref_anormal: bool
-    fonts_suspectes: list[str]
-    score_risque_forensic: int
-
-@dataclass(frozen=True)
-class MathResult:
-    est_scan: bool
-    net_saisi: float
-    nb_mois: int
-    cumul_saisi: float
-    calcul_theorique: float
-    ecart: float
-    fraude_math: bool
-
-@dataclass(frozen=True)
-class Verdict:
-    statut: str
-    score_risque: int
-    fraude_math: bool
-    fraude_meta: bool
-    est_scan: bool
-    ecart: float
-
-# ---------------------------------------------------------------------------
-# Chargement des secrets
-# ---------------------------------------------------------------------------
-
-@st.cache_resource
-def charger_secrets() -> AppSecrets:
-    try:
-        return AppSecrets(
-            email_expediteur=st.secrets["EMAIL_EXPEDITEUR"],
-            mot_de_passe_email=st.secrets["MOT_DE_PASSE_EMAIL"],
-        )
-    except Exception:
-        st.warning("⚠️ Secrets non configurés — mode démo.")
-        return AppSecrets(email_expediteur="", mot_de_passe_email="")
-
-# ---------------------------------------------------------------------------
-# Validation
-# ---------------------------------------------------------------------------
-
-def is_valid_email(email: str) -> bool:
-    return bool(email and EMAIL_PATTERN.fullmatch(email.strip()))
-
-def validate_pdf_size(uploaded_file) -> Optional[str]:
-    if uploaded_file.size > PDF_MAX_BYTES:
-        return f"Fichier trop volumineux ({uploaded_file.size // (1024*1024)} Mo). Maximum : 20 Mo."
-    return None
-
-# ---------------------------------------------------------------------------
-# Extraction PDF + analyse forensique avancée
-# ---------------------------------------------------------------------------
-
-def _sha256_of_file(uploaded_file) -> str:
-    uploaded_file.seek(0)
-    raw = uploaded_file.read()
-    uploaded_file.seek(0)
-    return hashlib.sha256(raw).hexdigest()
-
-def _count_xref_and_streams(uploaded_file) -> tuple[int, int]:
-    """Compte les sections xref et les streams dans le PDF brut."""
-    uploaded_file.seek(0)
-    raw = uploaded_file.read()
-    uploaded_file.seek(0)
-    xref_count = raw.count(b"xref")
-    stream_count = raw.count(b"stream\n") + raw.count(b"stream\r\n")
-    return xref_count, stream_count
-
-def _detect_javascript(uploaded_file) -> bool:
-    uploaded_file.seek(0)
-    raw = uploaded_file.read()
-    uploaded_file.seek(0)
-    return b"/JavaScript" in raw or b"/JS " in raw
-
-def _detect_embedded_files(uploaded_file) -> bool:
-    uploaded_file.seek(0)
-    raw = uploaded_file.read()
-    uploaded_file.seek(0)
-    return b"/EmbeddedFile" in raw or b"/EmbeddedFiles" in raw
-
-def _extract_font_names(pdf) -> list[str]:
-    fonts: list[str] = []
-    try:
-        for page in pdf.pages:
-            for name, obj in (page.mediabox and {}) or {}:
-                pass
-        # Extraction via le reader pdfplumber
-        for page in pdf.pages:
-            if hasattr(page, 'chars') and page.chars:
-                for ch in page.chars[:50]:
-                    fn = ch.get("fontname", "")
-                    if fn and fn not in fonts:
-                        fonts.append(fn)
-    except Exception:
-        pass
-    return fonts[:20]
-
-def extract_pdf_content(uploaded_file) -> PdfAnalysis:
-    error = None
-    texte = ""
-    metadata: dict = {}
-    font_names: list[str] = []
-
-    size_error = validate_pdf_size(uploaded_file)
-    if size_error:
-        return PdfAnalysis("", {}, "", 0, 0, [], False, False, size_error)
-
-    sha256 = _sha256_of_file(uploaded_file)
-    xref_count, stream_count = _count_xref_and_streams(uploaded_file)
-    javascript = _detect_javascript(uploaded_file)
-    embedded = _detect_embedded_files(uploaded_file)
-
-    try:
-        with pdfplumber.open(uploaded_file) as pdf:
-            metadata = {k: str(v) for k, v in (pdf.metadata or {}).items()}
-            font_names = _extract_font_names(pdf)
-            for page in pdf.pages:
-                page_text = page.extract_text() or ""
-                texte += page_text + "\n"
-    except Exception as exc:
-        error = str(exc)
-
-    return PdfAnalysis(
-        texte=texte,
-        metadata=metadata,
-        hash_sha256=sha256,
-        xref_count=xref_count,
-        stream_count=stream_count,
-        font_names=font_names,
-        javascript_present=javascript,
-        embedded_files=embedded,
-        error=error,
-    )
-
-# ---------------------------------------------------------------------------
-# Analyse forensique
-# ---------------------------------------------------------------------------
-
-def analyser_forensic(analysis: PdfAnalysis) -> ForensicResult:
-    meta_string = " ".join(analysis.metadata.values()).lower()
-    logiciels = [l for l in LOGICIELS_SUSPECTS if l in meta_string]
-    fraude_meta = len(logiciels) > 0
-
-    # xref anormal : plus de 2 sections = document remanié/reconstruit
-    xref_anormal = analysis.xref_count > 2
-
-    # Polices suspectes (ex : polices embarquées par éditeurs graphiques)
-    fonts_suspectes = [
-        f for f in analysis.font_names
-        if any(s in f.lower() for s in ["canva", "photoshop", "adobe", "acroform"])
-    ]
-
-    # Score forensique
-    score = 0
-    if fraude_meta:        score += 40
-    if xref_anormal:       score += 20
-    if analysis.javascript_present: score += 25
-    if analysis.embedded_files:     score += 10
-    if fonts_suspectes:    score += 15
-    score = min(score, 100)
-
-    return ForensicResult(
-        fraude_meta=fraude_meta,
-        logiciels_detectes=logiciels,
-        javascript_suspect=analysis.javascript_present,
-        fichiers_incorpores=analysis.embedded_files,
-        hash_sha256=analysis.hash_sha256,
-        xref_anormal=xref_anormal,
-        fonts_suspectes=fonts_suspectes,
-        score_risque_forensic=score,
-    )
-
-# ---------------------------------------------------------------------------
-# Analyse mathématique
-# ---------------------------------------------------------------------------
-
-_RE_NET = re.compile(
-    r"(?i)net\s*[àa]\s*payer[^\d]{0,20}([\d\s]{1,8}[.,]\d{2})",
-)
-_RE_CUMUL = re.compile(
-    r"(?i)cumul(?:s)?\s*(?:net|imposable|brut)?[^\d]{0,20}([\d\s]{1,8}[.,]\d{2})",
-)
-
-def _parse_montant(raw: str) -> float:
-    try:
-        return float(raw.replace(" ", "").replace(",", "."))
-    except ValueError:
-        return 0.0
-
-def construire_math_result(
-    texte: str,
-    net_override: Optional[float] = None,
-    mois_override: Optional[int] = None,
-    cumul_override: Optional[float] = None,
-) -> tuple[float, float, float]:
-    """Retourne (net_extrait, cumul_extrait, valeurs par défaut si non trouvé)."""
-    net_m = _RE_NET.search(texte)
-    cumul_m = _RE_CUMUL.search(texte)
-    net = _parse_montant(net_m.group(1)) if net_m else 0.0
-    cumul = _parse_montant(cumul_m.group(1)) if cumul_m else 0.0
-    return net, cumul
-
-def analyser_math(
-    texte: str,
-    net_saisi: float,
-    nb_mois: int,
-    cumul_saisi: float,
-) -> MathResult:
-    est_scan = len(texte.strip()) < 20
-    if est_scan:
-        return MathResult(True, 0, 1, 0, 0, 0, False)
-
-    calcul_theorique = net_saisi * nb_mois
-    ecart = abs(cumul_saisi - calcul_theorique)
-    # Seuil proportionnel : 8 % du cumul théorique, minimum 100 €
-    seuil = max(100.0, calcul_theorique * 0.08)
-    fraude_math = ecart > seuil
-
-    return MathResult(
-        est_scan=False,
-        net_saisi=net_saisi,
-        nb_mois=nb_mois,
-        cumul_saisi=cumul_saisi,
-        calcul_theorique=calcul_theorique,
-        ecart=ecart,
-        fraude_math=fraude_math,
-    )
-
-# ---------------------------------------------------------------------------
-# Verdict final
-# ---------------------------------------------------------------------------
-
-def calculer_verdict(math: MathResult, forensic: ForensicResult) -> Verdict:
-    if math.est_scan:
-        statut = "VÉRIFICATION MANUELLE REQUISE"
-        score = 70
-    elif math.fraude_math and forensic.fraude_meta:
-        statut = "CRITIQUE (Falsification détectée)"
-        score = 95
-    elif forensic.javascript_suspect:
-        statut = "CRITIQUE (JavaScript suspect)"
-        score = 90
-    elif math.fraude_math or forensic.fraude_meta:
-        statut = "SUSPECT (Anomalies majeures)"
-        score = max(75, forensic.score_risque_forensic)
-    elif forensic.xref_anormal:
-        statut = "SUSPECT (Structure PDF remaniée)"
-        score = 60
-    else:
-        statut = "FIABLE (Aucune anomalie détectée)"
-        score = max(5, forensic.score_risque_forensic)
-
-    return Verdict(
-        statut=statut,
-        score_risque=score,
-        fraude_math=math.fraude_math,
-        fraude_meta=forensic.fraude_meta,
-        est_scan=math.est_scan,
-        ecart=math.ecart,
-    )
-
-# ---------------------------------------------------------------------------
-# Génération PDF du rapport
-# ---------------------------------------------------------------------------
-
-def _sanitize(text: str) -> str:
-    normalized = unicodedata.normalize("NFKD", text)
-    ascii_text = normalized.encode("ascii", "ignore").decode("ascii")
-    for src, dst in {"'": "'", "'": "'", "\u201c": '"', "\u201d": '"',
-                     "…": "...", "–": "-", "—": "-"}.items():
-        ascii_text = ascii_text.replace(src, dst)
-    return ascii_text
-
-def get_report_filename(statut: str) -> str:
-    safe = re.sub(r"[^A-Za-z0-9]+", "-", statut).strip("-").lower() or "rapport"
-    return f"rapport-bailsafe-{safe}.pdf"
-
-def build_report_pdf(verdict: Verdict, forensic: ForensicResult) -> bytes:
-    is_suspicious = verdict.score_risque >= 60
-
-    pdf = FPDF()
-    pdf.add_page()
-    w = pdf.w - 2 * pdf.l_margin
-
-    def h(text: str, size: int = 12, bold: bool = False) -> None:
-        pdf.set_font("Helvetica", style="B" if bold else "", size=size)
-        pdf.cell(0, 8, _sanitize(text), new_x=XPos.LMARGIN, new_y=YPos.NEXT)
-
-    def p(text: str, size: int = 10) -> None:
-        pdf.set_font("Helvetica", size=size)
-        pdf.multi_cell(w, 6, _sanitize(text))
-
-    h("Rapport d'Audit — BailSafe", size=16, bold=True)
-    pdf.set_font("Helvetica", size=10)
-    pdf.cell(0, 7, _sanitize("Analyse documentaire et controle de coherence"), new_x=XPos.LMARGIN, new_y=YPos.NEXT, align="C")
-    pdf.ln(4)
-
-    h(f"Diagnostic : {verdict.statut}", size=12, bold=True)
-    p(f"- Score de risque : {verdict.score_risque}/100")
-    p(f"- Hash SHA-256 du document : {forensic.hash_sha256[:32]}...")
-    p(f"- Sections xref detectees : {forensic.xref_anormal and 'Anormal (>2)' or 'Normal'}")
-
-    if not verdict.est_scan:
-        p(f"- Ecart budgetaire observe : {verdict.ecart:.2f} EUR")
-
-    if forensic.logiciels_detectes:
-        p(f"- Logiciels d'edition detectes : {', '.join(forensic.logiciels_detectes)}")
-    else:
-        p("- Aucune signature d'outil d'edition graphique suspecte.")
-
-    if forensic.javascript_suspect:
-        p("- ALERTE : Code JavaScript detecte dans le PDF.")
-    if forensic.fichiers_incorpores:
-        p("- Fichiers incorpores detectes dans le document.")
-    if forensic.fonts_suspectes:
-        p(f"- Polices suspectes : {', '.join(forensic.fonts_suspectes)}")
-
-    pdf.ln(2)
-    h("Appreciation", size=11, bold=True)
-    if is_suspicious:
-        p("Le dossier presente des elements qui appellent a la prudence. Les incoherences doivent etre traitees comme des signaux d'alerte.")
-    else:
-        p("Le dossier apparait globalement coherent et ne revele pas d'anomalie majeure.")
-
-    pdf.ln(2)
-    h("Actions recommandees", size=11, bold=True)
-    if is_suspicious:
-        p("- Demander l'original du document ou une piece complementaire.")
-        p("- Verifier manuellement les montants avant toute decision.")
-        p("- Conserver la trace de ce diagnostic.")
-    else:
-        p("- Conserver le dossier avec un suivi simple.")
-        p("- Utiliser ce rapport comme justificatif de rigueur.")
-
-    pdf.ln(4)
-    pdf.set_font("Helvetica", style="I", size=9)
-    pdf.multi_cell(w, 5, _sanitize(
-        "RGPD : Audit realise en memoire locale. Aucune donnee n'est conservee durablement. "
-        "Ce rapport constitue un avis technique consultatif et ne constitue pas une garantie juridique."
-    ))
-
-    return bytes(pdf.output(dest="S"))
-
-# ---------------------------------------------------------------------------
-# Envoi email
-# ---------------------------------------------------------------------------
-
-def envoyer_rapport(
-    secrets: AppSecrets,
-    email_client: str,
-    pdf_bytes: bytes,
-    filename: str,
-) -> tuple[bool, str]:
-    if not secrets.email_expediteur or not secrets.mot_de_passe_email:
-        return False, "Secrets SMTP non configurés."
-    if not is_valid_email(email_client):
-        return False, "Adresse email invalide."
-
-    # Nettoyage strict de l'adresse pour éviter l'injection de headers
-    clean_email = email_client.strip().replace("\r", "").replace("\n", "")
-
-    try:
-        msg = MIMEMultipart()
-        msg["From"] = secrets.email_expediteur
-        msg["To"] = clean_email
-        msg["Subject"] = "[BailSafe] Rapport d'Audit Locatif"
-        msg.attach(MIMEText(
-            "Bonjour,\n\nVeuillez trouver ci-joint le rapport d'audit.\n\nCordialement,\nNolan — BailSafe",
-            "plain",
-        ))
-        part = MIMEBase("application", "octet-stream")
-        part.set_payload(pdf_bytes)
-        encoders.encode_base64(part)
-        part.add_header("Content-Disposition", f'attachment; filename="{filename}"')
-        msg.attach(part)
-
-        with smtplib.SMTP("smtp.gmail.com", 587, timeout=10) as server:
-            server.starttls()
-            server.login(secrets.email_expediteur, secrets.mot_de_passe_email)
-            server.send_message(msg)
-
-        return True, "Rapport envoyé avec succès."
-    except smtplib.SMTPAuthenticationError:
-        return False, "Authentification SMTP échouée. Vérifiez les secrets."
-    except smtplib.SMTPException as exc:
-        return False, f"Erreur SMTP : {exc}"
-    except Exception as exc:
-        return False, f"Erreur inattendue : {exc}"
-
-# ---------------------------------------------------------------------------
-# Helpers UI
-# ---------------------------------------------------------------------------
-
-def build_home_shortcuts() -> list[dict]:
-    return [
-        {"title": "Le risque",     "slug": "risque",    "icon": "🚨"},
-        {"title": "La solution",   "slug": "solution",  "icon": "💡"},
-        {"title": "Rapport type",  "slug": "rapport",   "icon": "📄"},
-        {"title": "Sécurité",      "slug": "securite",  "icon": "🔒"},
-        {"title": "Mentions",      "slug": "mentions",  "icon": "⚖️"},
-    ]
-
-def get_home_section_info(slug: str) -> dict:
-    sections = {
-        "risque": {
-            "title": "Pourquoi sécuriser vos dossiers locatifs ?",
-            "content": "Un propriétaire n'a ni le temps ni les outils pour traquer les anomalies documentaires. BailSafe automatise ce travail.",
-        },
-        "solution": {
-            "title": "Notre analyse technique",
-            "content": "Pour 20 € par dossier : audit de structure PDF, vérification forensique des métadonnées, cohérence mathématique, rapport PDF sous 24h.",
-        },
-        "rapport": {
-            "title": "Ce que contient l'audit",
-            "content": "Hash SHA-256 du document, analyse des sections xref, détection des outils d'édition, écart budgétaire calculé, verdict clair.",
-        },
-        "securite": {
-            "title": "Conformité et confidentialité",
-            "content": "Conformément au RGPD, BailSafe n'effectue aucun stockage persistant. L'analyse est volatile : les données sont purgées après traitement.",
-        },
-        "mentions": {
-            "title": "Mentions légales",
-            "content": (
-                "Éditeur : BailSafe — Nolan Bunet. Contact : bunetnolan@gmail.com\n"
-                "Hébergement : Streamlit Community Cloud.\n"
-                "BailSafe fournit un avis technique consultatif. Aucune garantie d'impayé. "
-                "La décision finale relève de la responsabilité exclusive du bailleur."
-            ),
-        },
-    }
-    return sections.get(slug, sections["risque"])
-
-def build_gain_simulation(n: int) -> tuple[int, int, int]:
-    return n * 25, min(95, n * 12), n * 180
-
-def build_ai_reply(msg: str) -> str:
-    low = msg.lower()
-    if any(k in low for k in ["prix", "combien", "coût", "tarif"]):
-        return "L'audit coûte 20 € par dossier, rapport PDF inclus."
-    if any(k in low for k in ["rapide", "vite", "délai"]):
-        return "L'analyse est livrée sous 24 heures, rapport prêt à transmettre."
-    if any(k in low for k in ["risque", "sécur", "fraude"]):
-        return "BailSafe détecte les incohérences mathématiques, les métadonnées suspectes et la structure interne du PDF."
-    return "Je peux vous renseigner sur le coût, le délai ou les méthodes de détection utilisées."
-
-# ---------------------------------------------------------------------------
-# Page vitrine
-# ---------------------------------------------------------------------------
-
-def inject_styles() -> None:
-    st.markdown("""
+<!DOCTYPE html>
+<html lang="fr" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BailSafe | Détection de Fraude Locative par IA</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-    .bs-card {
-        background: var(--background-color, #ffffff);
-        border: 1px solid rgba(0,0,0,.08);
-        border-radius: 14px;
-        padding: 18px 20px;
-        margin-bottom: 14px;
-        transition: transform .2s ease, box-shadow .2s ease;
-    }
-    .bs-card:hover { transform: translateY(-3px); box-shadow: 0 12px 28px rgba(0,0,0,.07); }
-    .bs-hero {
-        background: linear-gradient(140deg, #0f172a 0%, #1e3a8a 100%);
-        border-radius: 18px;
-        padding: 36px 28px;
-        text-align: center;
-        border: 2px solid rgba(245,158,11,.85);
-    }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #f8fafc;
+            color: #1e293b;
+            line-height: 1.6;
+        }
+
+        .smooth {
+            scroll-behavior: smooth;
+        }
+
+        /* NAV */
+        nav {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            z-index: 50;
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+        }
+
+        .nav-inner {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 64px;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: white;
+            font-weight: bold;
+            font-size: 20px;
+            text-decoration: none;
+        }
+
+        .logo .shield {
+            color: #f59e0b;
+            font-size: 24px;
+        }
+
+        .logo .mark {
+            color: #f59e0b;
+        }
+
+        .nav-links {
+            display: none;
+            gap: 32px;
+        }
+
+        .nav-links a {
+            color: #cbd5e1;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        .nav-links a:hover {
+            color: #fff;
+        }
+
+        @media (min-width: 768px) {
+            .nav-links {
+                display: flex;
+            }
+        }
+
+        .nav-cta {
+            background: #f59e0b;
+            color: #1e293b;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 13px;
+            border: none;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .nav-cta:hover {
+            background: #fbbf24;
+        }
+
+        /* HERO */
+        .hero {
+            background: #0f172a;
+            padding: 120px 24px 80px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 1000px;
+            height: 500px;
+            background: radial-gradient(ellipse, rgba(245, 158, 11, 0.15), transparent 70%);
+            pointer-events: none;
+        }
+
+        .hero-content {
+            max-width: 800px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 1;
+        }
+
+        .h-badge {
+            display: inline-block;
+            background: rgba(245, 158, 11, 0.1);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            color: #fbbf24;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            margin-bottom: 24px;
+            text-transform: uppercase;
+        }
+
+        .h-title {
+            font-size: clamp(2rem, 6vw, 3.5rem);
+            font-weight: 800;
+            color: #fff;
+            margin-bottom: 20px;
+            line-height: 1.15;
+        }
+
+        .h-title .accent {
+            background: linear-gradient(135deg, #f59e0b, #ff6b6b);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .h-sub {
+            font-size: 1.15rem;
+            color: #cbd5e1;
+            max-width: 650px;
+            margin: 0 auto 32px;
+            line-height: 1.7;
+        }
+
+        .h-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .h-buttons button {
+            font-size: 16px;
+        }
+
+        @media (min-width: 640px) {
+            .h-buttons {
+                flex-direction: row;
+            }
+        }
+
+        .btn-primary {
+            background: #f59e0b;
+            color: #1e293b;
+            padding: 14px 28px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.25);
+        }
+
+        .btn-primary:hover {
+            background: #fbbf24;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(245, 158, 11, 0.35);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: #f59e0b;
+            border: 1px solid rgba(245, 158, 11, 0.4);
+            padding: 14px 28px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-secondary:hover {
+            border-color: rgba(245, 158, 11, 0.7);
+            background: rgba(245, 158, 11, 0.05);
+        }
+
+        .h-proof {
+            display: flex;
+            gap: 30px;
+            justify-content: center;
+            flex-wrap: wrap;
+            font-size: 13px;
+            color: #94a3b8;
+        }
+
+        .h-proof span {
+            color: #f59e0b;
+        }
+
+        /* SCANNER */
+        .scanner-demo {
+            max-width: 800px;
+            margin: 0 auto 0;
+            padding: 0 24px;
+        }
+
+        .scan-container {
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.12);
+            overflow: hidden;
+            border: 1px solid #e2e8f0;
+        }
+
+        @keyframes scanline {
+            0% {
+                top: 0;
+                opacity: 0;
+            }
+
+            10% {
+                opacity: 1;
+            }
+
+            90% {
+                opacity: 1;
+            }
+
+            100% {
+                top: 100%;
+                opacity: 0;
+            }
+        }
+
+        .scan-header {
+            background: #f1f5f9;
+            padding: 16px 24px;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .scan-dots {
+            display: flex;
+            gap: 8px;
+        }
+
+        .dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .dot-r {
+            background: #ef4444;
+        }
+
+        .dot-y {
+            background: #f59e0b;
+        }
+
+        .dot-g {
+            background: #10b981;
+        }
+
+        .scan-name {
+            font-size: 12px;
+            color: #64748b;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+
+        .scan-body {
+            padding: 24px;
+            position: relative;
+            min-height: 280px;
+            background: #fff;
+        }
+
+        .scan-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #f1f5f9;
+            font-size: 13px;
+        }
+
+        .scan-row:last-child {
+            border-bottom: none;
+        }
+
+        .scan-label {
+            color: #64748b;
+            font-weight: 500;
+        }
+
+        .scan-val {
+            color: #1e293b;
+            font-weight: 600;
+        }
+
+        .badge-ok {
+            background: #ecfdf5;
+            color: #065f46;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .badge-alert {
+            background: #fef2f2;
+            color: #991b1b;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .badge-warn {
+            background: #fef3c7;
+            color: #92400e;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .scan-score {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #f1f5f9;
+        }
+
+        .score-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: #64748b;
+            margin-bottom: 8px;
+        }
+
+        .score-num {
+            font-size: 24px;
+            font-weight: 800;
+            color: #ef4444;
+        }
+
+        .score-bar {
+            height: 6px;
+            background: #e2e8f0;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .score-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #f59e0b, #ef4444);
+            border-radius: 3px;
+            transition: width 2.2s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .verdict {
+            margin-top: 16px;
+            padding: 12px 16px;
+            background: #fef2f2;
+            border-left: 3px solid #ef4444;
+            color: #7f1d1d;
+            font-size: 12px;
+            border-radius: 4px;
+            opacity: 0;
+            transition: opacity 0.4s;
+            font-weight: 600;
+        }
+
+        .scanner-line {
+            position: absolute;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #ef4444, transparent);
+            box-shadow: 0 0 8px #ef4444;
+            animation: scanline 2.8s ease-in-out infinite;
+            z-index: 10;
+        }
+
+        /* SECTION */
+        .section {
+            padding: 80px 24px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .s-label {
+            font-size: 12px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: #f59e0b;
+            font-weight: 700;
+            margin-bottom: 16px;
+        }
+
+        .s-title {
+            font-size: clamp(2rem, 5vw, 3rem);
+            font-weight: 800;
+            color: #0f172a;
+            margin-bottom: 16px;
+            line-height: 1.2;
+        }
+
+        .s-title .accent {
+            color: #f59e0b;
+        }
+
+        .s-desc {
+            font-size: 1.05rem;
+            color: #475569;
+            max-width: 700px;
+            line-height: 1.8;
+            margin-bottom: 32px;
+        }
+
+        /* PAIN */
+        .pain-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 16px;
+            margin-top: 32px;
+        }
+
+        .pain-card {
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-left: 4px solid #ef4444;
+            border-radius: 8px;
+            padding: 24px;
+            transition: all 0.2s;
+        }
+
+        .pain-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
+        }
+
+        .pain-num {
+            font-size: 28px;
+            font-weight: 800;
+            color: #f59e0b;
+            margin-bottom: 8px;
+        }
+
+        .pain-title {
+            font-weight: 700;
+            color: #0f172a;
+            margin-bottom: 8px;
+            font-size: 15px;
+        }
+
+        .pain-desc {
+            font-size: 14px;
+            color: #64748b;
+            line-height: 1.6;
+        }
+
+        /* BENEFITS */
+        .benefits-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-top: 32px;
+        }
+
+        .benefit-card {
+            background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 24px;
+            text-align: center;
+            transition: all 0.2s;
+        }
+
+        .benefit-card:hover {
+            border-color: #f59e0b;
+            background: #fffbf0;
+        }
+
+        .b-icon {
+            font-size: 28px;
+            margin-bottom: 12px;
+        }
+
+        .b-title {
+            font-weight: 700;
+            color: #0f172a;
+            margin-bottom: 8px;
+            font-size: 15px;
+        }
+
+        .b-desc {
+            font-size: 13px;
+            color: #64748b;
+            line-height: 1.6;
+        }
+
+        /* PROCESS */
+        .process {
+            margin-top: 48px;
+            background: #f9fafb;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .process-head {
+            background: #0f172a;
+            color: #fff;
+            padding: 16px 24px;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        .process-steps {
+            padding: 32px 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        @media (min-width: 768px) {
+            .process-steps {
+                flex-direction: row;
+                justify-content: space-around;
+            }
+        }
+
+        .p-step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+
+        .p-num {
+            width: 40px;
+            height: 40px;
+            background: #f59e0b;
+            color: #1e293b;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            margin-bottom: 12px;
+            font-size: 18px;
+        }
+
+        .p-name {
+            font-weight: 700;
+            color: #0f172a;
+            margin-bottom: 6px;
+            font-size: 15px;
+        }
+
+        .p-desc {
+            font-size: 13px;
+            color: #64748b;
+            line-height: 1.6;
+        }
+
+        /* REPORT */
+        .report-section {
+            background: #f9fafb;
+            border-radius: 8px;
+            padding: 24px;
+            margin-top: 32px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .r-head {
+            font-size: 12px;
+            color: #64748b;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin-bottom: 16px;
+        }
+
+        .r-rows {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .r-row {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 16px;
+            font-size: 13px;
+            padding: 8px 0;
+        }
+
+        .r-label {
+            color: #64748b;
+        }
+
+        .r-val {
+            font-weight: 700;
+            color: #1e293b;
+            font-family: 'Courier New', monospace;
+        }
+
+        .v-red {
+            color: #dc2626;
+        }
+
+        .v-orange {
+            color: #d97706;
+        }
+
+        .v-green {
+            color: #16a34a;
+        }
+
+        .author-box {
+            background: #fffbf0;
+            border: 1px solid #fed7aa;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 24px;
+            display: flex;
+            gap: 16px;
+        }
+
+        .author-avatar {
+            width: 48px;
+            height: 48px;
+            background: #f59e0b;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-weight: 800;
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+
+        .author-text {
+            font-size: 14px;
+            color: #78350f;
+            line-height: 1.6;
+        }
+
+        .author-text strong {
+            color: #b45309;
+        }
+
+        /* OFFER */
+        .offer-box {
+            background: #0f172a;
+            border-radius: 12px;
+            overflow: hidden;
+            margin-top: 32px;
+            border: 1px solid rgba(245, 158, 11, 0.2);
+        }
+
+        .offer-head {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            padding: 32px 24px;
+            text-align: center;
+        }
+
+        .offer-price {
+            font-size: 3.5rem;
+            font-weight: 800;
+            color: #fff;
+            margin-bottom: 4px;
+        }
+
+        .offer-unit {
+            font-size: 14px;
+            color: #cbd5e1;
+        }
+
+        .offer-tag {
+            display: inline-block;
+            background: rgba(245, 158, 11, 0.15);
+            color: #fbbf24;
+            padding: 6px 16px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 700;
+            margin-top: 12px;
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        .offer-body {
+            padding: 32px 24px;
+        }
+
+        .objections {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .obj-item {
+            display: flex;
+            gap: 12px;
+            font-size: 14px;
+            color: #cbd5e1;
+            align-items: flex-start;
+        }
+
+        .obj-check {
+            color: #10b981;
+            font-weight: 800;
+            font-size: 18px;
+            flex-shrink: 0;
+            margin-top: -2px;
+        }
+
+        .offer-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .btn-final {
+            background: #f59e0b;
+            color: #1e293b;
+            padding: 16px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 800;
+            font-size: 15px;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.25);
+        }
+
+        .btn-final:hover {
+            background: #fbbf24;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(245, 158, 11, 0.35);
+        }
+
+        .btn-secondary-final {
+            background: transparent;
+            color: #cbd5e1;
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            padding: 14px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-secondary-final:hover {
+            border-color: rgba(245, 158, 11, 0.6);
+            color: #fff;
+        }
+
+        .garantie {
+            background: rgba(16, 185, 129, 0.08);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            border-radius: 6px;
+            padding: 14px;
+            font-size: 12px;
+            color: #047857;
+            margin-top: 16px;
+            line-height: 1.6;
+        }
+
+        .footer {
+            background: #0f172a;
+            color: #94a3b8;
+            padding: 32px 24px;
+            text-align: center;
+            border-top: 1px solid rgba(148, 163, 184, 0.1);
+            font-size: 13px;
+        }
+
+        .footer-logo {
+            color: #fff;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .footer-logo .mark {
+            color: #f59e0b;
+        }
     </style>
-    """, unsafe_allow_html=True)
+</head>
 
-def afficher_vitrine() -> None:
-    inject_styles()
+<body class="smooth">
 
-    st.markdown("""
-    <div class="bs-hero">
-        <div style="font-size:52px;margin-bottom:8px">🛡️</div>
-        <h1 style="color:#fff;margin:0;font-size:2rem;letter-spacing:.5px">BailSafe</h1>
-        <p style="color:#cbd5e1;margin-top:6px;font-size:1rem">
-            Audit anti-fraude documentaire · Analyse forensique PDF · 20 € par dossier
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
-
-    st.markdown("<h3 style='text-align:center;margin-top:24px'>Louez en toute sérénité.</h3>", unsafe_allow_html=True)
-
-    if "active_home_category" not in st.session_state:
-        st.session_state["active_home_category"] = "risque"
-
-    shortcuts = build_home_shortcuts()
-    cols = st.columns(len(shortcuts))
-    for col, s in zip(cols, shortcuts):
-        with col:
-            if st.button(f"{s['icon']} {s['title']}", key=f"sc_{s['slug']}", use_container_width=True):
-                st.session_state["active_home_category"] = s["slug"]
-
-    active_slug = st.session_state["active_home_category"]
-    info = get_home_section_info(active_slug)
-
-    st.divider()
-
-    if active_slug == "risque":
-        st.markdown(f"### {info['title']}")
-        c1, c2, c3 = st.columns(3)
-        c1.metric("Risque financier", "Élevé", "Impayés en hausse", delta_color="inverse")
-        c2.metric("Contrôle visuel seul", "Insuffisant", "Fraudes invisibles", delta_color="inverse")
-        c3.metric("Délai d'analyse", "< 24h", "Rapport express")
-        st.info(info["content"])
-
-    elif active_slug == "solution":
-        st.markdown(f"### {info['title']}")
-        st.success(info["content"])
-        st.markdown("""
-- 🔎 **Forensique** : Hash SHA-256, sections xref, JavaScript, fichiers incorporés.
-- 🧮 **Cohérence** : Écart budgétaire avec seuil proportionnel au salaire.
-- 📄 **Rapport PDF** : Livrable clair, transmissible, conforme RGPD.
-        """)
-
-    elif active_slug == "rapport":
-        st.markdown(f"### {info['title']}")
-        st.markdown("""
-> **📋 Exemple de rapport BailSafe**
-> - Statut : 🔴 SUSPECT (Anomalies majeures)
-> - Hash SHA-256 : `a3f9c2...` (empreinte unique du fichier)
-> - Sections xref : **3 détectées** — structure remaniée
-> - Écart budgétaire : **1 240,00 €** (seuil proportionnel dépassé)
-> - Logiciel détecté : Adobe Photoshop 2023 dans les métadonnées
-        """)
-
-    elif active_slug == "securite":
-        st.markdown(f"### {info['title']}")
-        st.warning("🛡️ Zéro base de données. Analyse volatile. Données purgées après rapport.")
-        st.markdown(info["content"])
-
-    elif active_slug == "mentions":
-        st.markdown(f"### {info['title']}")
-        st.markdown(info["content"])
-
-    st.divider()
-    st.markdown("<h3 style='text-align:center'>Une offre claire</h3>", unsafe_allow_html=True)
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Prix", "20 €", "par dossier")
-    c2.metric("Délai", "< 24h", "analyse express")
-    c3.metric("Livrable", "PDF", "rapport transmissible")
-    st.markdown("### Simulateur de gain")
-    n = st.slider("Dossiers analysés par mois", 1, 20, 5)
-    minutes, risk, value = build_gain_simulation(n)
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Temps économisé", f"{minutes} min")
-    c2.metric("Risque réduit (est.)", f"{risk}%")
-    c3.metric("Valeur protégée (est.)", f"{value} €")
-
-    st.markdown("### Une question ?")
-    user_msg = st.text_input("Posez votre question", placeholder="Combien ça coûte ?")
-    if user_msg:
-        st.info(build_ai_reply(user_msg))
-   
-    if user_msg:
-        st.info(build_ai_reply(user_msg))
-
-    with st.expander("❓ FAQ"):
-        st.write("**L'audit est-il utile si le dossier semble correct ?**")
-        st.write("Oui — certains signes de manipulation sont invisibles à l'œil nu et nécessitent une analyse de la structure interne du PDF.")
-        st.write("**Qu'est-ce que l'analyse forensique couvre ?**")
-        st.write("Hash SHA-256 (intégrité), sections xref (remaniement), métadonnées (outils d'édition), JavaScript, fichiers incorporés.")
-        st.write("**Les données sont-elles stockées ?**")
-        st.write("Non. Traitement en mémoire uniquement, conforme RGPD.")
-
-    st.markdown("""
-    <div class="bs-card" style="background:#0f172a;border:1px solid #f59e0b;text-align:center;padding:24px">
-        <h3 style="color:#fff;margin-top:0">Sécurisez vos dossiers sous 24h</h3>
-        <p style="color:#e5e7eb">20 € par dossier · Rapport PDF · Analyse forensique complète</p>
-        <div style="display:flex;justify-content:center;gap:12px;flex-wrap:wrap;margin-top:14px">
-            <a href="https://leboncoin.fr/profil/3780fc14-e927-43d6-b826-40c02a3300c2" target="_blank"
-               style="background:#f56523;color:#fff;padding:10px 22px;border-radius:8px;text-decoration:none;font-weight:600">
-               🛒 LeBonCoin
+    <!-- NAV -->
+    <nav>
+        <div class="nav-inner">
+            <a href="#" class="logo">
+                <span class="fa-solid fa-shield-halved shield"></span>
+                <span>Bail<span class="mark">Safe</span></span>
             </a>
-            <a href="https://www.facebook.com/share/1KKBK1mfpV/?mibextid=wwXlfr" target="_blank"
-               style="background:#2563eb;color:#fff;padding:10px 22px;border-radius:8px;text-decoration:none;font-weight:600">
-               📘 Facebook
-            </a>
+            <div class="nav-links">
+                <a href="#pain">Le Risque</a>
+                <a href="#benefits">La Solution</a>
+                <a href="#expert">L'Expertise</a>
+                <a href="#offer">Tarif</a>
+            </div>
+            <button class="nav-cta"
+                onclick="document.getElementById('offer').scrollIntoView({behavior:'smooth'})">Sécuriser un dossier</button>
+        </div>
+    </nav>
+
+    <!-- HERO -->
+    <section class="hero">
+        <div class="hero-content">
+            <div class="h-badge">Service exclusif pour propriétaires bailleurs</div>
+            <h1 class="h-title">Ne donnez pas les clés de votre bien à un <span class="accent">fraudeur</span> (sans le
+                savoir).</h1>
+            <p class="h-sub">Les fausses fiches de paie et avis d'imposition falsifiés sont devenues indétectables à l'œil
+                nu. BailSafe détecte ces fraudes grâce à l'IA — évitez jusqu'à 3 ans de procédure d'expulsion et des
+                milliers d'euros de pertes.</p>
+            <div class="h-buttons">
+                <button class="btn-primary"
+                    onclick="document.getElementById('offer').scrollIntoView({behavior:'smooth'})">Analyser un dossier
+                    maintenant (20€)</button>
+                <button class="btn-secondary">Voir un exemple de rapport</button>
+            </div>
+            <div class="h-proof">
+                <div><span>⚡ Résultat rapide</span></div>
+                <div><span>📊 Investissement 100% déductible</span></div>
+                <div><span>✓ Conforme RGPD</span></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- SCANNER DEMO -->
+    <div class="scanner-demo">
+        <div class="scan-container">
+            <div class="scan-header">
+                <div class="scan-dots">
+                    <div class="dot dot-r"></div>
+                    <div class="dot dot-y"></div>
+                    <div class="dot dot-g"></div>
+                </div>
+                <span class="scan-name">Analyse BailSafe en cours...</span>
+            </div>
+            <div class="scan-body">
+                <div class="scan-row">
+                    <span class="scan-label">SHA-256 intégrité</span>
+                    <span class="badge-ok">VÉRIFIÉ</span>
+                </div>
+                <div class="scan-row">
+                    <span class="scan-label">Sections xref</span>
+                    <span class="badge-warn">ANORMAL (3)</span>
+                </div>
+                <div class="scan-row">
+                    <span class="scan-label">Métadonnées éditeur</span>
+                    <span class="badge-alert">Adobe Photoshop 2023</span>
+                </div>
+                <div class="scan-row">
+                    <span class="scan-label">Écart budgétaire</span>
+                    <span class="badge-alert">1 240 € / DÉPASSÉ</span>
+                </div>
+                <div class="scan-row">
+                    <span class="scan-label">JavaScript embarqué</span>
+                    <span class="badge-ok">AUCUN</span>
+                </div>
+                <div class="scan-score">
+                    <div class="score-label">
+                        <span>Score de risque</span>
+                        <span class="score-num" id="scorenum">0</span>
+                    </div>
+                    <div class="score-bar">
+                        <div class="score-fill" id="scorefill"></div>
+                    </div>
+                    <div class="verdict" id="verd">⚠️ VERDICT: SUSPECT — Falsification probable. Refuser ou demander
+                        l'original.</div>
+                </div>
+                <div class="scanner-line"></div>
+            </div>
         </div>
     </div>
-    """, unsafe_allow_html=True)
 
-# ---------------------------------------------------------------------------
-# Main
-# ---------------------------------------------------------------------------
+    <!-- PAIN POINTS -->
+    <section class="section" id="pain">
+        <div class="s-label">// Le_Problème</div>
+        <h2 class="s-title">Vous contrôlez à l'œil nu. <span class="accent">Les fraudeurs le savent.</span></h2>
+        <p class="s-desc">Les fausses fiches de paie, avis d'imposition modifiés et contrats bidons ne se voient plus.
+            Ils sont générés en PDF propre, avec des outils gratuits accessibles à tous.</p>
+        <div class="pain-grid">
+            <div class="pain-card">
+                <div class="pain-num">01</div>
+                <div class="pain-title">Un impayé = ~3 000 € de pertes minimum</div>
+                <div class="pain-desc">Avant toute procédure légale. Sans compter les mois de vacance locative et les
+                    frais d'huissier.</div>
+            </div>
+            <div class="pain-card">
+                <div class="pain-num">02</div>
+                <div class="pain-title">Un montant modifié est invisible à l'œil nu</div>
+                <div class="pain-desc">Le chiffre semble juste, la mise en page aussi. Seule une analyse forensique
+                    trahit la manipulation.</div>
+            </div>
+            <div class="pain-card">
+                <div class="pain-num">03</div>
+                <div class="pain-title">Une fois le bail signé, vous êtes bloqué</div>
+                <div class="pain-desc">L'expulsion prend 12 à 18 mois. Un dossier non vérifié vous coûtera bien plus
+                    que 20 €.</div>
+            </div>
+            <div class="pain-card">
+                <div class="pain-num">04</div>
+                <div class="pain-title">Faire confiance à son instinct = roulette</div>
+                <div class="pain-desc">Les fraudeurs sont polis, bien préparés, et suivent des tutoriels pour
+                    falsifier leurs documents.</div>
+            </div>
+        </div>
+    </section>
 
-def main() -> None:
-    st.set_page_config(
-        page_title="BailSafe | Audit Locatif",
-        page_icon="🛡️",
-        layout="centered",
-    )
-    afficher_vitrine()
+    <!-- BENEFITS -->
+    <section class="section" id="benefits">
+        <div class="s-label">// La_Solution</div>
+        <h2 class="s-title">Ce que BailSafe analyse <span class="accent">en moins de 24h.</span></h2>
+        <p class="s-desc">Pas de formulaire compliqué, pas de spécialiste à convaincre. Vous envoyez le PDF — BailSafe
+            inspecte la structure profonde et vous livre un verdict clair.</p>
+        <div class="benefits-grid">
+            <div class="benefit-card">
+                <div class="b-icon">🔬</div>
+                <div class="b-title">Forensique métadonnées</div>
+                <div class="b-desc">Détecte Photoshop, Canva et outils d'édition cachés dans la structure du PDF.
+                </div>
+            </div>
+            <div class="benefit-card">
+                <div class="b-icon">🔐</div>
+                <div class="b-title">Intégrité SHA-256</div>
+                <div class="b-desc">Empreinte unique — prouve que le document n'a pas été altéré après émission.
+                </div>
+            </div>
+            <div class="benefit-card">
+                <div class="b-icon">💰</div>
+                <div class="b-title">Cohérence budgétaire</div>
+                <div class="b-desc">Vérifie automatiquement si les cumuls de salaire correspondent aux mensualités.
+                </div>
+            </div>
+            <div class="benefit-card">
+                <div class="b-icon">📄</div>
+                <div class="b-title">Rapport PDF transmissible</div>
+                <div class="b-desc">Document daté, conservable, utile en cas de litige ou refus motivé.</div>
+            </div>
+        </div>
 
-if __name__ == "__main__":
-    main()
+        <div class="process">
+            <div class="process-head">Procédure — 3 Étapes</div>
+            <div class="process-steps">
+                <div class="p-step">
+                    <div class="p-num">1</div>
+                    <div class="p-name">Commande LeBonCoin</div>
+                    <div class="p-desc">Paiement sécurisé. Vous envoyez le PDF par email.</div>
+                </div>
+                <div class="p-step">
+                    <div class="p-num">2</div>
+                    <div class="p-name">Analyse complète</div>
+                    <div class="p-desc">Structure PDF, métadonnées, finances, intégrité.</div>
+                </div>
+                <div class="p-step">
+                    <div class="p-num">3</div>
+                    <div class="p-name">Rapport sous 24h</div>
+                    <div class="p-desc">Verdict clair + détail de chaque anomalie détectée.</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- EXPERTISE -->
+    <section class="section" id="expert">
+        <div class="s-label">// Preuve_Technique</div>
+        <h2 class="s-title">Voici <span class="accent">exactement</span> ce que le rapport contient.</h2>
+        <p class="s-desc">Pas de promesses vagues. Un exemple réel, sur un dossier détecté comme suspect :</p>
+
+        <div class="report-section">
+            <div class="r-head">Rapport d'audit bailsafe — Dossier_0042.pdf</div>
+            <div class="r-rows">
+                <div class="r-row">
+                    <span class="r-label">Statut global</span>
+                    <span class="r-val v-red">SUSPECT — Anomalies majeures</span>
+                </div>
+                <div class="r-row">
+                    <span class="r-label">Score de risque</span>
+                    <span class="r-val v-red">94 / 100</span>
+                </div>
+                <div class="r-row">
+                    <span class="r-label">Hash SHA-256</span>
+                    <span class="r-val">a3f9c2d1... (vérifié)</span>
+                </div>
+                <div class="r-row">
+                    <span class="r-label">Sections xref</span>
+                    <span class="r-val v-orange">3 → structure remaniée</span>
+                </div>
+                <div class="r-row">
+                    <span class="r-label">Logiciel détecté</span>
+                    <span class="r-val v-red">Adobe Photoshop 2023</span>
+                </div>
+                <div class="r-row">
+                    <span class="r-label">Écart budgétaire</span>
+                    <span class="r-val v-red">1 240 € — seuil dépassé</span>
+                </div>
+                <div class="r-row">
+                    <span class="r-label">JavaScript</span>
+                    <span class="r-val v-green">Aucun</span>
+                </div>
+                <div class="r-row">
+                    <span class="r-label">Recommandation</span>
+                    <span class="r-val v-orange">Demander l'original ou refuser</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="author-box">
+            <div class="author-avatar">NB</div>
+            <div class="author-text"><strong>Nolan, créateur de BailSafe.</strong> J'ai construit cet outil après
+                avoir constaté qu'un PDF de fiche de paie se falsifie en moins de 10 minutes avec des outils gratuits —
+                et que les propriétaires n'avaient aucun moyen technique de le détecter. BailSafe automatise l'analyse
+                que seul un expert pouvait réaliser avant.</div>
+        </div>
+    </section>
+
+    <!-- OFFER -->
+    <section class="section" id="offer">
+        <div class="s-label">// Offre_Finale</div>
+        <h2 class="s-title">Un dossier frauduleux coûte des milliers.<br><span class="accent">L'audit en coûte 20
+                €.</span></h2>
+        <p class="s-desc">Votre candidat semble sérieux. Peut-être qu'il l'est. Mais si son PDF a été retouché, vous ne le
+            verrez jamais — BailSafe si.</p>
+
+        <div class="offer-box">
+            <div class="offer-head">
+                <div class="offer-price">20 €</div>
+                <div class="offer-unit">TTC par dossier analysé</div>
+                <div class="offer-tag">RAPPORT PDF INCLUS · SOUS 24H</div>
+            </div>
+            <div class="offer-body">
+                <div class="objections">
+                    <div class="obj-item">
+                        <span class="obj-check">✓</span>
+                        <span>Commande directe sur LeBonCoin — pas de compte à créer, pas de logiciel.</span>
+                    </div>
+                    <div class="obj-item">
+                        <span class="obj-check">✓</span>
+                        <span>Vous envoyez juste le PDF par email — aucune manipulation technique requise.</span>
+                    </div>
+                    <div class="obj-item">
+                        <span class="obj-check">✓</span>
+                        <span>Le rapport est daté et conservable — utile en cas de litige ou refus motivé.</span>
+                    </div>
+                    <div class="obj-item">
+                        <span class="obj-check">✓</span>
+                        <span>Analyse en mémoire uniquement — aucune donnée stockée, conforme RGPD.</span>
+                    </div>
+                </div>
+                <div class="offer-buttons">
+                    <button class="btn-final"
+                        onclick="openLink('https://leboncoin.fr/profil/3780fc14-e927-43d6-b826-40c02a3300c2')">Commander mon audit
+                        — 20 € sur LeBonCoin</button>
+                    <button class="btn-secondary-final"
+                        onclick="openLink('https://www.facebook.com/share/1KKBK1mfpV/?mibextid=wwXlfr')">Retrouver BailSafe
+                        sur Facebook</button>
+                </div>
+                <div class="garantie">✓ Si l'analyse ne peut pas être réalisée (scan papier, format incompatible),
+                    vous êtes remboursé intégralement — sans questions.</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+        <div class="footer-logo">
+            <span class="fa-solid fa-shield-halved" style="color:#f59e0b;margin-right:6px"></span>Bail<span
+                class="mark">Safe</span>
+        </div>
+        <p>© 2026 BailSafe. La détection par IA est un outil d'aide à la décision. Le propriétaire reste le seul
+            décideur final.</p>
+        <p style="margin-top:8px;font-size:11px;color:#64748b">bunetnolan@icloud.com</p>
+    </footer>
+
+    <script>
+        function openLink(url) {
+            window.open(url, '_blank');
+        }
+
+        setTimeout(function () {
+            var fill = document.getElementById('scorefill');
+            var num = document.getElementById('scorenum');
+            var verd = document.getElementById('verd');
+            if (!fill) return;
+            fill.style.width = '94%';
+            var t0 = null;
+            function tick(ts) {
+                if (!t0) t0 = ts;
+                var p = Math.min((ts - t0) / 2200, 1);
+                var ease = 1 - Math.pow(1 - p, 4);
+                num.textContent = Math.round(ease * 94) + '/100';
+                if (p === 1) verd.style.opacity = '1';
+                if (p < 1) requestAnimationFrame(tick);
+            }
+            requestAnimationFrame(tick);
+        }, 900);
+    </script>
+
+</body>
+
+</html>
