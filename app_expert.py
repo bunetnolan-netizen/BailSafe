@@ -1,9 +1,3 @@
-"""
-BailSafe — Interface Expert (URL séparée, pas d'authentification dans le code)
-Lancer avec : streamlit run app_expert.py
-Sécuriser l'accès via Streamlit Cloud → Settings → Viewer Authentication (email whitelist)
-"""
-
 from __future__ import annotations
 
 import streamlit as st
