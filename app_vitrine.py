@@ -481,7 +481,7 @@ html_content = """
                         <button class="btn-stripe" onclick="window.open('https://buy.stripe.com/test_3cI14ngjC4aga5L0fL0RG00','_blank')">
                             💳 Payer par carte (Stripe)
                         </button>
-                        <button class="btn-paypal" onclick="window.open('VOTRE_LIEN_PAYPAL_ICI','_blank')">
+                        <button class="btn-paypal" onclick="window.open('paypal.me/NolanBunet/20EUR','_blank')">
                             🅿️ Payer via PayPal
                         </button>
                     </div>
