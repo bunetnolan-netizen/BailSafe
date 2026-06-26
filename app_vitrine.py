@@ -516,9 +516,9 @@ html_content = """
         // 5. Copie les 3 valeurs ci-dessous de ton dashboard EmailJS
         
         const EMAILJS_CONFIG = {
-            PUBLIC_KEY: 'YOUR_PUBLIC_KEY_HERE',      // À remplacer
-            SERVICE_ID: 'YOUR_SERVICE_ID_HERE',      // À remplacer
-            TEMPLATE_ID: 'YOUR_TEMPLATE_ID_HERE'     // À remplacer
+            PUBLIC_KEY: 'pIYqblvWNyPFoU8L8',      // À remplacer
+            SERVICE_ID: 'service_thamc97',      // À remplacer
+            TEMPLATE_ID: 'template_6rbeve8'     // À remplacer
         };
 
         // Vérification de configuration
