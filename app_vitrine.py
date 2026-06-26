@@ -508,9 +508,9 @@ html_content = """
     <script>
         // ── EmailJS init ──────────────────────────────────────────────
         // ⚠️  REMPLACE ces 3 valeurs par tes vraies clés EmailJS
-        var EMAILJS_PUBLIC_KEY  = 'VOTRE_PUBLIC_KEY';   // Account > API Keys
-        var EMAILJS_SERVICE_ID  = 'VOTRE_SERVICE_ID';   // Email Services
-        var EMAILJS_TEMPLATE_ID = 'VOTRE_TEMPLATE_ID';  // Email Templates
+        var EMAILJS_PUBLIC_KEY  = 'pIYqblvWNyPFoU8L8';   // Account > API Keys
+        var EMAILJS_SERVICE_ID  = 'service_6e28n05';   // Email Services
+        var EMAILJS_TEMPLATE_ID = 'template_6rbeve8';  // Email Templates
 
         emailjs.init(EMAILJS_PUBLIC_KEY);
 
