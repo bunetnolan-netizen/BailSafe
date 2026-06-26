@@ -7,16 +7,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# ════════════════════════════════════════════════════════════════════
-# INSTRUCTION — FORMSPREE (à faire 1 seule fois, prend 2 minutes)
-# ════════════════════════════════════════════════════════════════════
-# 1. Va sur https://formspree.io et crée un compte gratuit
-# 2. Crée un "New Form" → entre ton email bunetnolan@gmail.com
-# 3. Copie l'endpoint fourni (ex: https://formspree.io/f/xpwzabcd)
-# 4. Remplace FORMSPREE_ENDPOINT ci-dessous par cet URL
-# ════════════════════════════════════════════════════════════════════
-
-FORMSPREE_ENDPOINT = "https://formspree.io/f/xqevqgjo"
+FORMSPREE_ENDPOINT = "https://formspree.io/f/REMPLACE_PAR_TON_ID"
 
 html_content = f"""
 <!DOCTYPE html>
@@ -161,6 +152,12 @@ html_content = f"""
         .f-select option {{ background: #1e293b; }}
         .f-textarea {{ resize: vertical; min-height: 90px; }}
 
+        .gdpr-checkbox {{ display: flex; align-items: flex-start; gap: 12px; margin: 16px 0; padding: 12px; background: rgba(16,185,129,0.05); border: 1px solid rgba(16,185,129,0.2); border-radius: 6px; }}
+        .gdpr-checkbox input {{ margin-top: 2px; cursor: pointer; accent-color: #f59e0b; }}
+        .gdpr-checkbox label {{ font-size: 12px; color: #475569; cursor: pointer; line-height: 1.5; }}
+        .gdpr-checkbox a {{ color: #f59e0b; font-weight: 600; text-decoration: none; border-bottom: 1px dotted; }}
+        .gdpr-checkbox a:hover {{ color: #fbbf24; }}
+
         .btn-form-submit {{ width: 100%; background: #f59e0b; color: #1e293b; padding: 15px; border: none; border-radius: 8px; font-weight: 800; font-size: 15px; cursor: pointer; margin-top: 6px; box-shadow: 0 4px 12px rgba(245,158,11,0.25); transition: all 0.2s; }}
         .btn-form-submit:hover:not(:disabled) {{ background: #fbbf24; transform: translateY(-2px); }}
         .btn-form-submit:disabled {{ opacity: 0.6; cursor: not-allowed; }}
@@ -185,6 +182,9 @@ html_content = f"""
         .footer {{ background: #0f172a; color: #94a3b8; padding: 32px 24px; text-align: center; border-top: 1px solid rgba(148,163,184,0.1); font-size: 13px; }}
         .footer-logo {{ color: #fff; font-weight: 700; margin-bottom: 8px; }}
         .footer-logo .mark {{ color: #f59e0b; }}
+        .footer-links {{ display: flex; justify-content: center; gap: 16px; flex-wrap: wrap; margin-top: 12px; font-size: 12px; }}
+        .footer-links a {{ color: #94a3b8; text-decoration: none; transition: color 0.2s; }}
+        .footer-links a:hover {{ color: #f59e0b; }}
     </style>
 </head>
 
@@ -346,7 +346,7 @@ html_content = f"""
                     <div class="obj-item"><span class="obj-check">✓</span><span>Commande directe — pas de compte à créer, pas de logiciel.</span></div>
                     <div class="obj-item"><span class="obj-check">✓</span><span>Vous envoyez juste le PDF par email — aucune manipulation technique requise.</span></div>
                     <div class="obj-item"><span class="obj-check">✓</span><span>Le rapport est daté et conservable — utile en cas de litige.</span></div>
-                    <div class="obj-item"><span class="obj-check">✓</span><span>Analyse en mémoire uniquement — aucune donnée stockée, conforme RGPD.</span></div>
+                    <div class="obj-item"><span class="obj-check">✓</span><span>Conforme RGPD — données supprimées sous 30 jours.</span></div>
                 </div>
 
                 <div class="offer-buttons">
@@ -356,7 +356,7 @@ html_content = f"""
 
                 <div class="form-divider">ou commander directement ici</div>
 
-                <!-- FORMULAIRE → Formspree -->
+                <!-- FORMULAIRE RGPD COMPLIANT -->
                 <div id="form-section">
                     <div class="form-box">
                         <div class="form-box-title">📋 Commander via ce formulaire</div>
@@ -390,6 +390,15 @@ html_content = f"""
                                 <label class="f-label">Message / Précisions (optionnel)</label>
                                 <textarea class="f-textarea" id="message" placeholder="Ex : dossier pour un T3 à 800€/mois..."></textarea>
                             </div>
+                            
+                            <!-- CHECKBOX RGPD OBLIGATOIRE -->
+                            <div class="form-full">
+                                <div class="gdpr-checkbox">
+                                    <input type="checkbox" id="gdpr" required>
+                                    <label for="gdpr">J'accepte que mes données soient traitées pour cette commande et consultez la <a href="#privacy">politique de confidentialité</a></label>
+                                </div>
+                            </div>
+                            
                             <div class="form-full">
                                 <button type="button" class="btn-form-submit" id="submitBtn" onclick="handleSubmit()">
                                     <span id="submitText">📤 Envoyer ma demande</span>
@@ -426,7 +435,14 @@ html_content = f"""
             <span class="fa-solid fa-shield-halved" style="color:#f59e0b;margin-right:6px"></span>Bail<span class="mark">Safe</span>
         </div>
         <p>© 2026 BailSafe. La détection par IA est un outil d'aide à la décision.</p>
-        <p style="margin-top:8px;font-size:11px;color:#64748b">bunetnolan@gmail.com</p>
+        <div class="footer-links">
+            <a href="#privacy">Politique de confidentialité</a>
+            <span>·</span>
+            <a href="mailto:bunetnolan@gmail.com?subject=RGPD%20-Droit%20à%20l'oubli">Droit à l'oubli</a>
+            <span>·</span>
+            <a href="mailto:bunetnolan@gmail.com">Mentions légales</a>
+        </div>
+        <p style="margin-top:12px;font-size:11px;color:#64748b">bunetnolan@gmail.com · Sainte-Rose, Guadeloupe</p>
     </footer>
 
     <!-- TOAST -->
@@ -467,9 +483,15 @@ html_content = f"""
             const phone   = document.getElementById('phone').value.trim();
             const doctype = document.getElementById('doctype').value;
             const message = document.getElementById('message').value.trim();
+            const gdpr    = document.getElementById('gdpr').checked;
 
             if (!name || !email || !doctype) {{
                 showToast('⚠️ Remplis les champs obligatoires', true);
+                return;
+            }}
+
+            if (!gdpr) {{
+                showToast('⚠️ Accepte la politique de confidentialité', true);
                 return;
             }}
 
@@ -488,6 +510,7 @@ html_content = f"""
                         phone: phone || 'Non renseigné',
                         document_type: doctype,
                         message: message || 'Aucune précision',
+                        gdpr_consent: 'Accepté',
                         _subject: '🛡️ Nouvelle commande BailSafe — ' + name,
                         _replyto: email
                     }})
@@ -515,3 +538,7 @@ html_content = f"""
 """
 
 st.components.v1.html(html_content, height=4200, scrolling=True)
+
+# Page politique de confidentialité modale (accessible via lien)
+if "show_privacy" not in st.session_state:
+    st.session_state.show_privacy = False
