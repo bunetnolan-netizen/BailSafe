@@ -227,6 +227,9 @@ html_content = """
 
         .btn-paypal { flex: 1; background: #003087; color: #fff; padding: 14px 20px; border: none; border-radius: 8px; font-weight: 700; font-size: 14px; cursor: pointer; transition: all 0.2s; }
         .btn-paypal:hover { background: #00409a; transform: translateY(-2px); }
+
+        .btn-stripe { flex: 1; background: #635bff; color: #fff; padding: 14px 20px; border: none; border-radius: 8px; font-weight: 700; font-size: 14px; cursor: pointer; transition: all 0.2s; }
+        .btn-stripe:hover { background: #7c75ff; transform: translateY(-2px); }
         .pc-note { font-size: 12px; color: #64748b; margin-top: 16px; }
 
         /* Toast */
@@ -458,12 +461,16 @@ html_content = """
                 <div class="payment-confirm" id="paymentConfirm">
                     <div class="pc-icon">✅</div>
                     <div class="pc-title">Demande reçue !</div>
-                    <div class="pc-sub">Votre demande a bien été envoyée à bunetnolan@gmail.com. Finalisez maintenant le paiement de <strong style="color:#f59e0b">20 €</strong>.</div>
+                    <div class="pc-sub">Votre demande a bien été envoyée à bunetnolan@gmail.com. Finalisez maintenant le paiement de <strong style="color:#f59e0b">20 €</strong> pour lancer l'analyse. Vous recevrez le rapport sous 24h.</div>
                     <div class="pc-buttons">
-                        <button class="btn-paypal" onclick="window.open('https://paypal.me/NolanBunet/20EUR','_blank')">🅿️ Payer via PayPal</button>
-                        <button class="btn-paypal" onclick="window.open('https://leboncoin.fr/profil/3780fc14-e927-43d6-b826-40c02a3300c2','_blank')">🛒 Payer via LeBonCoin</button>
+                        <button class="btn-stripe" onclick="window.open('https://buy.stripe.com/test_3cI14ngjC4aga5L0fL0RG00','_blank')">
+                            💳 Payer par Carte (Stripe)
+                        </button>
+                        <button class="btn-paypal" onclick="window.open('https://paypal.me/NolanBunet/20EUR','_blank')">
+                            🅿️ Payer via PayPal
+                        </button>
                     </div>
-                    <div class="pc-note">Paiement 100% sécurisé</div>
+                    <div class="pc-note">Paiement 100% sécurisé · Remboursé si document incompatible</div>
                 </div>
 
                 <div class="garantie">✓ Si l'analyse ne peut pas être réalisée, vous êtes remboursé intégralement.</div>
