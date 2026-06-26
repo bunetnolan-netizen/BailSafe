@@ -1,3 +1,15 @@
+import streamlit as st
+
+# Configuration de la page
+st.set_page_config(
+    page_title="BailSafe | Détection de Fraude Locative par IA",
+    page_icon="🛡️",
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
+
+# HTML/CSS complet
+html_content = """
 <!DOCTYPE html>
 <html lang="fr" class="scroll-smooth">
 <head>
@@ -14,33 +26,24 @@
             box-sizing: border-box;
         }
 
-        html {
-            scroll-behavior: smooth;
-        }
-
         body {
             font-family: 'Inter', sans-serif;
             background: #f8fafc;
             color: #1e293b;
             line-height: 1.6;
-            margin: 0 !important;
-            padding: 0 !important;
         }
 
-        /* Streamlit iframe reset */
-        :root {
-            --background: #f8fafc;
+        .smooth {
+            scroll-behavior: smooth;
         }
-
-        /* scroll handled on html element */
 
         /* NAV */
         nav {
-            position: sticky;
+            position: fixed;
             top: 0;
             width: 100%;
             z-index: 50;
-            background: rgba(15, 23, 42, 0.98);
+            background: rgba(15, 23, 42, 0.95);
             backdrop-filter: blur(10px);
             border-bottom: 1px solid rgba(148, 163, 184, 0.1);
         }
@@ -116,7 +119,7 @@
         /* HERO */
         .hero {
             background: #0f172a;
-            padding: 80px 24px 80px;
+            padding: 120px 24px 80px;
             text-align: center;
             position: relative;
             overflow: hidden;
@@ -259,23 +262,10 @@
         }
 
         @keyframes scanline {
-            0% {
-                top: 0;
-                opacity: 0;
-            }
-
-            10% {
-                opacity: 1;
-            }
-
-            90% {
-                opacity: 1;
-            }
-
-            100% {
-                top: 100%;
-                opacity: 0;
-            }
+            0% { top: 0; opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { top: 100%; opacity: 0; }
         }
 
         .scan-header {
@@ -298,17 +288,9 @@
             border-radius: 50%;
         }
 
-        .dot-r {
-            background: #ef4444;
-        }
-
-        .dot-y {
-            background: #f59e0b;
-        }
-
-        .dot-g {
-            background: #10b981;
-        }
+        .dot-r { background: #ef4444; }
+        .dot-y { background: #f59e0b; }
+        .dot-g { background: #10b981; }
 
         .scan-name {
             font-size: 12px;
@@ -333,19 +315,10 @@
             font-size: 13px;
         }
 
-        .scan-row:last-child {
-            border-bottom: none;
-        }
+        .scan-row:last-child { border-bottom: none; }
 
-        .scan-label {
-            color: #64748b;
-            font-weight: 500;
-        }
-
-        .scan-val {
-            color: #1e293b;
-            font-weight: 600;
-        }
+        .scan-label { color: #64748b; font-weight: 500; }
+        .scan-val { color: #1e293b; font-weight: 600; }
 
         .badge-ok {
             background: #ecfdf5;
@@ -457,9 +430,7 @@
             line-height: 1.2;
         }
 
-        .s-title .accent {
-            color: #f59e0b;
-        }
+        .s-title .accent { color: #f59e0b; }
 
         .s-desc {
             font-size: 1.05rem;
@@ -650,27 +621,16 @@
             padding: 8px 0;
         }
 
-        .r-label {
-            color: #64748b;
-        }
-
+        .r-label { color: #64748b; }
         .r-val {
             font-weight: 700;
             color: #1e293b;
             font-family: 'Courier New', monospace;
         }
 
-        .v-red {
-            color: #dc2626;
-        }
-
-        .v-orange {
-            color: #d97706;
-        }
-
-        .v-green {
-            color: #16a34a;
-        }
+        .v-red { color: #dc2626; }
+        .v-orange { color: #d97706; }
+        .v-green { color: #16a34a; }
 
         .author-box {
             background: #fffbf0;
@@ -702,9 +662,7 @@
             line-height: 1.6;
         }
 
-        .author-text strong {
-            color: #b45309;
-        }
+        .author-text strong { color: #b45309; }
 
         /* OFFER */
         .offer-box {
@@ -839,13 +797,11 @@
             margin-bottom: 8px;
         }
 
-        .footer-logo .mark {
-            color: #f59e0b;
-        }
+        .footer-logo .mark { color: #f59e0b; }
     </style>
 </head>
 
-<body>
+<body class="smooth">
 
     <!-- NAV -->
     <nav>
@@ -860,8 +816,7 @@
                 <a href="#expert">L'Expertise</a>
                 <a href="#offer">Tarif</a>
             </div>
-            <button class="nav-cta"
-                onclick="document.getElementById('offer').scrollIntoView({behavior:'smooth'})">Sécuriser un dossier</button>
+            <button class="nav-cta" onclick="document.getElementById('offer').scrollIntoView({behavior:'smooth'})">Sécuriser un dossier</button>
         </div>
     </nav>
 
@@ -869,15 +824,10 @@
     <section class="hero">
         <div class="hero-content">
             <div class="h-badge">Service exclusif pour propriétaires bailleurs</div>
-            <h1 class="h-title">Ne donnez pas les clés de votre bien à un <span class="accent">fraudeur</span> (sans le
-                savoir).</h1>
-            <p class="h-sub">Les fausses fiches de paie et avis d'imposition falsifiés sont devenues indétectables à l'œil
-                nu. BailSafe détecte ces fraudes grâce à l'IA — évitez jusqu'à 3 ans de procédure d'expulsion et des
-                milliers d'euros de pertes.</p>
+            <h1 class="h-title">Ne donnez pas les clés de votre bien à un <span class="accent">fraudeur</span> (sans le savoir).</h1>
+            <p class="h-sub">Les fausses fiches de paie et avis d'imposition falsifiés sont devenues indétectables à l'œil nu. BailSafe détecte ces fraudes grâce à l'IA — évitez jusqu'à 3 ans de procédure d'expulsion et des milliers d'euros de pertes.</p>
             <div class="h-buttons">
-                <button class="btn-primary"
-                    onclick="document.getElementById('offer').scrollIntoView({behavior:'smooth'})">Analyser un dossier
-                    maintenant (20€)</button>
+                <button class="btn-primary" onclick="document.getElementById('offer').scrollIntoView({behavior:'smooth'})">Analyser un dossier maintenant (20€)</button>
                 <button class="btn-secondary">Voir un exemple de rapport</button>
             </div>
             <div class="h-proof">
@@ -928,8 +878,7 @@
                     <div class="score-bar">
                         <div class="score-fill" id="scorefill"></div>
                     </div>
-                    <div class="verdict" id="verd">⚠️ VERDICT: SUSPECT — Falsification probable. Refuser ou demander
-                        l'original.</div>
+                    <div class="verdict" id="verd">⚠️ VERDICT: SUSPECT — Falsification probable. Refuser ou demander l'original.</div>
                 </div>
                 <div class="scanner-line"></div>
             </div>
@@ -940,32 +889,27 @@
     <section class="section" id="pain">
         <div class="s-label">// Le_Problème</div>
         <h2 class="s-title">Vous contrôlez à l'œil nu. <span class="accent">Les fraudeurs le savent.</span></h2>
-        <p class="s-desc">Les fausses fiches de paie, avis d'imposition modifiés et contrats bidons ne se voient plus.
-            Ils sont générés en PDF propre, avec des outils gratuits accessibles à tous.</p>
+        <p class="s-desc">Les fausses fiches de paie, avis d'imposition modifiés et contrats bidons ne se voient plus. Ils sont générés en PDF propre, avec des outils gratuits accessibles à tous.</p>
         <div class="pain-grid">
             <div class="pain-card">
                 <div class="pain-num">01</div>
                 <div class="pain-title">Un impayé = ~3 000 € de pertes minimum</div>
-                <div class="pain-desc">Avant toute procédure légale. Sans compter les mois de vacance locative et les
-                    frais d'huissier.</div>
+                <div class="pain-desc">Avant toute procédure légale. Sans compter les mois de vacance locative et les frais d'huissier.</div>
             </div>
             <div class="pain-card">
                 <div class="pain-num">02</div>
                 <div class="pain-title">Un montant modifié est invisible à l'œil nu</div>
-                <div class="pain-desc">Le chiffre semble juste, la mise en page aussi. Seule une analyse forensique
-                    trahit la manipulation.</div>
+                <div class="pain-desc">Le chiffre semble juste, la mise en page aussi. Seule une analyse forensique trahit la manipulation.</div>
             </div>
             <div class="pain-card">
                 <div class="pain-num">03</div>
                 <div class="pain-title">Une fois le bail signé, vous êtes bloqué</div>
-                <div class="pain-desc">L'expulsion prend 12 à 18 mois. Un dossier non vérifié vous coûtera bien plus
-                    que 20 €.</div>
+                <div class="pain-desc">L'expulsion prend 12 à 18 mois. Un dossier non vérifié vous coûtera bien plus que 20 €.</div>
             </div>
             <div class="pain-card">
                 <div class="pain-num">04</div>
                 <div class="pain-title">Faire confiance à son instinct = roulette</div>
-                <div class="pain-desc">Les fraudeurs sont polis, bien préparés, et suivent des tutoriels pour
-                    falsifier leurs documents.</div>
+                <div class="pain-desc">Les fraudeurs sont polis, bien préparés, et suivent des tutoriels pour falsifier leurs documents.</div>
             </div>
         </div>
     </section>
@@ -974,26 +918,22 @@
     <section class="section" id="benefits">
         <div class="s-label">// La_Solution</div>
         <h2 class="s-title">Ce que BailSafe analyse <span class="accent">en moins de 24h.</span></h2>
-        <p class="s-desc">Pas de formulaire compliqué, pas de spécialiste à convaincre. Vous envoyez le PDF — BailSafe
-            inspecte la structure profonde et vous livre un verdict clair.</p>
+        <p class="s-desc">Pas de formulaire compliqué, pas de spécialiste à convaincre. Vous envoyez le PDF — BailSafe inspecte la structure profonde et vous livre un verdict clair.</p>
         <div class="benefits-grid">
             <div class="benefit-card">
                 <div class="b-icon">🔬</div>
                 <div class="b-title">Forensique métadonnées</div>
-                <div class="b-desc">Détecte Photoshop, Canva et outils d'édition cachés dans la structure du PDF.
-                </div>
+                <div class="b-desc">Détecte Photoshop, Canva et outils d'édition cachés dans la structure du PDF.</div>
             </div>
             <div class="benefit-card">
                 <div class="b-icon">🔐</div>
                 <div class="b-title">Intégrité SHA-256</div>
-                <div class="b-desc">Empreinte unique — prouve que le document n'a pas été altéré après émission.
-                </div>
+                <div class="b-desc">Empreinte unique — prouve que le document n'a pas été altéré après émission.</div>
             </div>
             <div class="benefit-card">
                 <div class="b-icon">💰</div>
                 <div class="b-title">Cohérence budgétaire</div>
-                <div class="b-desc">Vérifie automatiquement si les cumuls de salaire correspondent aux mensualités.
-                </div>
+                <div class="b-desc">Vérifie automatiquement si les cumuls de salaire correspondent aux mensualités.</div>
             </div>
             <div class="benefit-card">
                 <div class="b-icon">📄</div>
@@ -1070,20 +1010,15 @@
 
         <div class="author-box">
             <div class="author-avatar">NB</div>
-            <div class="author-text"><strong>Nolan, créateur de BailSafe.</strong> J'ai construit cet outil après
-                avoir constaté qu'un PDF de fiche de paie se falsifie en moins de 10 minutes avec des outils gratuits —
-                et que les propriétaires n'avaient aucun moyen technique de le détecter. BailSafe automatise l'analyse
-                que seul un expert pouvait réaliser avant.</div>
+            <div class="author-text"><strong>Nolan, créateur de BailSafe.</strong> J'ai construit cet outil après avoir constaté qu'un PDF de fiche de paie se falsifie en moins de 10 minutes avec des outils gratuits — et que les propriétaires n'avaient aucun moyen technique de le détecter. BailSafe automatise l'analyse que seul un expert pouvait réaliser avant.</div>
         </div>
     </section>
 
     <!-- OFFER -->
     <section class="section" id="offer">
         <div class="s-label">// Offre_Finale</div>
-        <h2 class="s-title">Un dossier frauduleux coûte des milliers.<br><span class="accent">L'audit en coûte 20
-                €.</span></h2>
-        <p class="s-desc">Votre candidat semble sérieux. Peut-être qu'il l'est. Mais si son PDF a été retouché, vous ne le
-            verrez jamais — BailSafe si.</p>
+        <h2 class="s-title">Un dossier frauduleux coûte des milliers.<br><span class="accent">L'audit en coûte 20 €.</span></h2>
+        <p class="s-desc">Votre candidat semble sérieux. Peut-être qu'il l'est. Mais si son PDF a été retouché, vous ne le verrez jamais — BailSafe si.</p>
 
         <div class="offer-box">
             <div class="offer-head">
@@ -1111,15 +1046,10 @@
                     </div>
                 </div>
                 <div class="offer-buttons">
-                    <button class="btn-final"
-                        onclick="openLink('https://leboncoin.fr/profil/3780fc14-e927-43d6-b826-40c02a3300c2')">Commander mon audit
-                        — 20 € sur LeBonCoin</button>
-                    <button class="btn-secondary-final"
-                        onclick="openLink('https://www.facebook.com/share/1KKBK1mfpV/?mibextid=wwXlfr')">Retrouver BailSafe
-                        sur Facebook</button>
+                    <button class="btn-final" onclick="window.open('https://leboncoin.fr/profil/3780fc14-e927-43d6-b826-40c02a3300c2','_blank')">Commander mon audit — 20 € sur LeBonCoin</button>
+                    <button class="btn-secondary-final" onclick="window.open('https://www.facebook.com/share/1KKBK1mfpV/?mibextid=wwXlfr','_blank')">Retrouver BailSafe sur Facebook</button>
                 </div>
-                <div class="garantie">✓ Si l'analyse ne peut pas être réalisée (scan papier, format incompatible),
-                    vous êtes remboursé intégralement — sans questions.</div>
+                <div class="garantie">✓ Si l'analyse ne peut pas être réalisée (scan papier, format incompatible), vous êtes remboursé intégralement — sans questions.</div>
             </div>
         </div>
     </section>
@@ -1127,48 +1057,14 @@
     <!-- FOOTER -->
     <footer class="footer">
         <div class="footer-logo">
-            <span class="fa-solid fa-shield-halved" style="color:#f59e0b;margin-right:6px"></span>Bail<span
-                class="mark">Safe</span>
+            <span class="fa-solid fa-shield-halved" style="color:#f59e0b;margin-right:6px"></span>Bail<span class="mark">Safe</span>
         </div>
-        <p>© 2026 BailSafe. La détection par IA est un outil d'aide à la décision. Le propriétaire reste le seul
-            décideur final.</p>
-        <p style="margin-top:8px;font-size:11px;color:#64748b">bunetnolan@gmail.com</p>
+        <p>© 2026 BailSafe. La détection par IA est un outil d'aide à la décision. Le propriétaire reste le seul décideur final.</p>
+        <p style="margin-top:8px;font-size:11px;color:#64748b">bunetnolan@icloud.com</p>
     </footer>
 
     <script>
-        function openLink(url) {
-            window.open(url, '_blank');
-        }
-
-        // Fix anchor scroll offset for sticky nav
-        document.querySelectorAll('a[href^="#"]').forEach(function(anchor) {
-            anchor.addEventListener('click', function(e) {
-                e.preventDefault();
-                var target = document.querySelector(this.getAttribute('href'));
-                if (target) {
-                    var navH = document.querySelector('nav') ? document.querySelector('nav').offsetHeight : 0;
-                    var top = target.getBoundingClientRect().top + window.pageYOffset - navH;
-                    window.scrollTo({ top: top, behavior: 'smooth' });
-                }
-            });
-        });
-
-        // Smooth scroll for scrollIntoView buttons (patch for Streamlit iframe)
-        document.querySelectorAll('button[onclick*="scrollIntoView"]').forEach(function(btn) {
-            var match = btn.getAttribute('onclick').match(/getElementById\('([^']+)'\)/);
-            if (match) {
-                btn.addEventListener('click', function() {
-                    var el = document.getElementById(match[1]);
-                    if (el) {
-                        var navH = document.querySelector('nav') ? document.querySelector('nav').offsetHeight : 0;
-                        var top = el.getBoundingClientRect().top + window.pageYOffset - navH;
-                        window.scrollTo({ top: top, behavior: 'smooth' });
-                    }
-                });
-            }
-        });
-
-        setTimeout(function () {
+        setTimeout(function() {
             var fill = document.getElementById('scorefill');
             var num = document.getElementById('scorenum');
             var verd = document.getElementById('verd');
@@ -1190,3 +1086,7 @@
 </body>
 
 </html>
+"""
+
+# Afficher le HTML avec Streamlit
+st.components.v1.html(html_content, height=1200, scrolling=True)
