@@ -236,11 +236,11 @@ def calculer_verdict(math: MathResult, forensic: ForensicResult) -> Verdict:
     score_global = int((score_math + score_forensic) / 2)
     
     if score_global >= 80:
-        statut = "🔴 DOSSIER SUSPECT — Recommande refus ou vérification approfondie"
+        statut = "🔴 ANOMALIES MAJEURES sur le document — Vérification humaine obligatoire"
     elif score_global >= 50:
-        statut = "🟠 DOSSIER À VÉRIFIER — Anomalies détectées, vigilance requise"
+        statut = "🟠 ANOMALIES MODÉRÉES sur le document — Vérification humaine recommandée"
     else:
-        statut = "🟢 DOSSIER CONFORME — Aucun signal détecté"
+        statut = "🟢 AUCUNE ANOMALIE TECHNIQUE détectée sur le document"
     
     return Verdict(
         score_risque=score_global,
@@ -329,7 +329,7 @@ def build_report_pdf(verdict: Verdict, forensic: ForensicResult) -> bytes:
     
     verdict_data = [
         ["Statut", verdict.statut],
-        ["Score de risque", f"{verdict.score_risque}/100"],
+        ["Indice d'anomalie documentaire", f"{verdict.score_risque}/100"],
     ]
     verdict_table = Table(verdict_data, colWidths=[50*mm, 110*mm])
     verdict_table.setStyle(TableStyle([
@@ -380,9 +380,9 @@ def build_report_pdf(verdict: Verdict, forensic: ForensicResult) -> bytes:
     
     if verdict.score_risque >= 80:
         recs = [
-            "🔴 Bloquer la validation — demander l'original signé du document.",
-            "🔴 Exiger une vérification supplémentaire (appel à l'employeur, etc.).",
-            "🔴 Conserver ce rapport dans le dossier candidat.",
+            "🔴 Suspendre la décision et demander l'original du document au candidat.",
+            "🔴 Procéder à une vérification humaine complémentaire (contact employeur, etc.).",
+            "🔴 La décision finale d'accepter ou refuser le dossier appartient au bailleur.",
         ]
     elif verdict.score_risque >= 50:
         recs = [
@@ -403,10 +403,13 @@ def build_report_pdf(verdict: Verdict, forensic: ForensicResult) -> bytes:
     
     # Avertissement légal
     story.append(Paragraph("AVERTISSEMENT LÉGAL", header_style))
-    legal_text = ("Ce rapport est une analyse technique fournie à titre consultatif. "
-                  "Il ne constitue pas une garantie juridique. BailSafe ne peut être tenu responsable "
-                  "des décisions prises en fonction de ce rapport. La fraude documentaire reste "
-                  "imprévisible en cas de document imprimé-rescanné après falsification.")
+    legal_text = ("Ce rapport est une analyse technique automatisée fournie à titre consultatif. "
+                  "Il porte sur l'integrite du document, non sur la personne. Il ne constitue pas une "
+                  "garantie juridique et ne vaut pas decision : la decision d'accepter ou de refuser un "
+                  "dossier appartient exclusivement au bailleur (aucune decision automatisee au sens de "
+                  "l'article 22 du RGPD). BailSafe ne peut etre tenu responsable des decisions prises sur "
+                  "la base de ce rapport. Une falsification suivie d'une impression puis d'un nouveau scan "
+                  "peut echapper a l'analyse.")
     story.append(Paragraph(legal_text, normal_style))
     
     story.append(Spacer(1, 20))
@@ -512,6 +515,15 @@ def afficher_interface_expert() -> None:
         </p>
     </div>
     """, unsafe_allow_html=True)
+
+    st.caption(
+        "🔒 **Traitement RGPD** — Les documents déposés sont analysés en mémoire, "
+        "ne sont pas conservés et disparaissent à la fin de la session. "
+        "Base légale : intérêt légitime du bailleur + exécution du contrat. "
+        "Le rapport est un **avis technique consultatif** : aucune décision automatisée "
+        "n'est prise sur les personnes (art. 22 RGPD), la décision finale revient au bailleur. "
+        "Pensez à informer le candidat que ses pièces font l'objet d'une vérification."
+    )
 
     secrets = get_secrets()
 
@@ -688,16 +700,20 @@ def afficher_interface_expert() -> None:
         """, unsafe_allow_html=True)
 
         st.progress(verdict.score_risque / 100)
+        st.caption(
+            "ℹ️ Indice d'anomalie **technique du document** — ne préjuge ni de la solvabilité "
+            "ni de l'honnêteté du candidat. La décision finale appartient au bailleur."
+        )
 
         st.markdown("#### Recommandations")
         
         if verdict.score_risque >= 80:
             recs = [
-                "🔴 **Bloquer la validation** — Demander l'original signé du document",
-                "🔴 **Exiger une vérification supplémentaire** (appel à l'employeur, etc.)",
-                "🔴 **Conserver ce rapport** dans le dossier candidat",
+                "🔴 **Suspendre la décision** — demander l'original du document au candidat",
+                "🔴 **Vérification humaine complémentaire** (contact employeur, etc.)",
+                "🔴 **La décision finale appartient au bailleur** (aucune décision automatisée)",
             ]
-            st.error("Ce dossier présente des signaux d'alerte importants")
+            st.error("Ce document présente des signaux d'alerte techniques importants")
         elif verdict.score_risque >= 50:
             recs = [
                 "🟠 **Alerter le bailleur** sur les anomalies détectées",
@@ -721,7 +737,12 @@ def afficher_interface_expert() -> None:
         filename = get_report_filename(verdict.statut)
 
         st.markdown("#### Transmission du rapport")
-        
+        st.warning(
+            "⚠️ L'email standard n'est pas chiffré et ce rapport contient des données personnelles. "
+            "Privilégiez le **téléchargement** puis une transmission sécurisée, ou n'envoyez qu'à une "
+            "adresse de confiance, avec l'accord de la personne concernée."
+        )
+
         email_client = st.text_input(
             "📧 Adresse email du client :",
             placeholder="client@exemple.com",
