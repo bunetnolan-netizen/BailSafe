@@ -1,7 +1,7 @@
 import streamlit as st
 
 st.set_page_config(
-    page_title="BailSafe | Détection de Fraude Locative par IA",
+    page_title="BailSafe | Détection de Fraude Documentaire — Analyse Forensique",
     page_icon="🛡️",
     layout="wide",
     initial_sidebar_state="collapsed"
@@ -15,7 +15,7 @@ html_content = f"""
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BailSafe | Détection de Fraude Locative par IA</title>
+    <title>BailSafe | Détection de Fraude Documentaire — Analyse Forensique</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -212,7 +212,7 @@ html_content = f"""
         <div class="hero-content">
             <div class="h-badge">Service exclusif pour propriétaires bailleurs</div>
             <h1 class="h-title">Ne donnez pas les clés de votre bien à un <span class="accent">fraudeur</span> (sans le savoir).</h1>
-            <p class="h-sub">Les fausses fiches de paie et avis d'imposition falsifiés sont devenues indétectables à l'œil nu. BailSafe détecte ces fraudes grâce à l'IA — évitez jusqu'à 3 ans de procédure d'expulsion et des milliers d'euros de pertes.</p>
+            <p class="h-sub">Les fausses fiches de paie et avis d'imposition falsifiés sont devenus indétectables à l'œil nu. BailSafe détecte ces anomalies grâce à une analyse forensique avancée des PDF — évitez jusqu'à 3 ans de procédure d'expulsion et des milliers d'euros de pertes.</p>
             <div class="h-buttons">
                 <button class="btn-primary" onclick="document.getElementById('offer').scrollIntoView({{behavior:'smooth'}})">Analyser un dossier maintenant (20€)</button>
                 <button class="btn-secondary">Voir un exemple de rapport</button>
@@ -248,7 +248,7 @@ html_content = f"""
                         <span class="score-num" id="scorenum">0</span>
                     </div>
                     <div class="score-bar"><div class="score-fill" id="scorefill"></div></div>
-                    <div class="verdict" id="verd">⚠️ VERDICT: SUSPECT — Falsification probable. Refuser ou demander l'original.</div>
+                    <div class="verdict" id="verd">⚠️ ANOMALIES DÉTECTÉES — Vérification humaine recommandée avant toute décision.</div>
                 </div>
                 <div class="scanner-line"></div>
             </div>
@@ -395,7 +395,7 @@ html_content = f"""
                             <div class="form-full">
                                 <div class="gdpr-checkbox">
                                     <input type="checkbox" id="gdpr" required>
-                                    <label for="gdpr">J'accepte que mes données soient traitées pour cette commande et consultez la <a href="#privacy">politique de confidentialité</a></label>
+                                    <label for="gdpr">J'accepte que mes données (nom, email, téléphone) soient traitées par BailSafe pour le traitement de ma commande. J'ai pris connaissance de la <a href="#privacy">politique de confidentialité</a>. Données conservées 30 jours maximum ; droit d'accès et de suppression à tout moment.</label>
                                 </div>
                             </div>
                             
@@ -429,12 +429,29 @@ html_content = f"""
         </div>
     </section>
 
+    <!-- POLITIQUE DE CONFIDENTIALITÉ / MENTIONS LÉGALES -->
+    <section class="section" id="privacy">
+        <div class="s-label">// Conformité_RGPD</div>
+        <h2 class="s-title">Confidentialité & <span class="accent">mentions légales</span></h2>
+        <div class="s-desc" style="max-width:760px">
+            <p><strong>Responsable de traitement :</strong> Nolan Bunet — BailSafe, Sainte-Rose (Guadeloupe). Contact : bunetnolan@gmail.com.</p>
+            <p style="margin-top:12px"><strong>Données collectées :</strong> via le formulaire (nom, email, téléphone, type de document) et, lors de l'audit, les documents PDF que vous transmettez volontairement.</p>
+            <p style="margin-top:12px"><strong>Finalité :</strong> traiter votre commande et réaliser l'analyse documentaire technique demandée.</p>
+            <p style="margin-top:12px"><strong>Base légale :</strong> exécution de mesures précontractuelles/contractuelles (votre commande) et intérêt légitime du bailleur à vérifier l'authenticité des pièces.</p>
+            <p style="margin-top:12px"><strong>Pièces de tiers :</strong> si vous transmettez les documents d'un candidat locataire, vous devez l'en informer. BailSafe n'a vocation à analyser que les documents légalement exigibles (décret n°2015-1437).</p>
+            <p style="margin-top:12px"><strong>Conservation :</strong> documents et données de commande supprimés sous 30 jours maximum. Les PDF ne sont pas stockés au-delà du traitement.</p>
+            <p style="margin-top:12px"><strong>Hébergement :</strong> application hébergée au sein de l'Union européenne.</p>
+            <p style="margin-top:12px"><strong>Aucune décision automatisée :</strong> le rapport est un avis technique consultatif. Aucune décision produisant des effets juridiques (acceptation/refus de location) n'est prise automatiquement ; la décision finale appartient au bailleur (art. 22 RGPD).</p>
+            <p style="margin-top:12px"><strong>Vos droits :</strong> accès, rectification, suppression, opposition — à exercer à bunetnolan@gmail.com. Réclamation possible auprès de la CNIL (cnil.fr).</p>
+        </div>
+    </section>
+
     <!-- FOOTER -->
     <footer class="footer">
         <div class="footer-logo">
             <span class="fa-solid fa-shield-halved" style="color:#f59e0b;margin-right:6px"></span>Bail<span class="mark">Safe</span>
         </div>
-        <p>© 2026 BailSafe. La détection par IA est un outil d'aide à la décision.</p>
+        <p>© 2026 BailSafe. L'analyse forensique est un outil d'aide à la décision — aucune décision automatisée n'est prise sur les personnes.</p>
         <div class="footer-links">
             <a href="#privacy">Politique de confidentialité</a>
             <span>·</span>
