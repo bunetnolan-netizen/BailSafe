@@ -16,10 +16,15 @@ from io import BytesIO
 import streamlit as st
 
 try:
-    import PyPDF2
-    from PyPDF2 import PdfReader
+    import pdfplumber
 except ImportError:
-    st.error("❌ PyPDF2 not installed. Run: pip install PyPDF2")
+    st.error("❌ pdfplumber not installed. Run: pip install -r requirements_merged.txt")
+    st.stop()
+
+try:
+    from fpdf import FPDF
+except ImportError:
+    st.error("❌ fpdf2 not installed. Run: pip install -r requirements_merged.txt")
     st.stop()
 
 try:
@@ -30,7 +35,7 @@ try:
     from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
     from reportlab.lib import colors
 except ImportError:
-    st.error("❌ ReportLab not installed. Run: pip install reportlab")
+    st.error("❌ reportlab not installed. Run: pip install -r requirements_merged.txt")
     st.stop()
 
 # Configuration logging
@@ -84,28 +89,31 @@ class Verdict:
 # ============== LOGIQUE MÉTIER ==============
 
 def extract_pdf_content(fichier_pdf) -> PDFAnalysis:
-    """Extrait texte, métadonnées et hash du PDF."""
+    """Extrait texte, métadonnées et hash du PDF avec pdfplumber."""
     try:
         pdf_bytes = fichier_pdf.read()
         
         # Hash SHA-256
         hash_sha256 = hashlib.sha256(pdf_bytes).hexdigest()
         
-        # Parse PDF
-        reader = PdfReader(BytesIO(pdf_bytes))
+        # Parse PDF avec pdfplumber
         texte = ""
-        for page in reader.pages:
-            texte += page.extract_text() or ""
+        metadata_dict = {}
         
-        # Métadonnées
-        metadata = reader.metadata or {}
-        metadata_dict = {
-            "Auteur": str(metadata.get("/Author", "N/A"))[:50],
-            "Créateur": str(metadata.get("/Creator", "N/A"))[:50],
-            "Producteur": str(metadata.get("/Producer", "N/A"))[:50],
-            "Date création": str(metadata.get("/CreationDate", "N/A"))[:50],
-            "Date modif": str(metadata.get("/ModDate", "N/A"))[:50],
-        }
+        with pdfplumber.open(BytesIO(pdf_bytes)) as pdf:
+            # Métadonnées
+            if pdf.metadata:
+                metadata_dict = {
+                    "Auteur": str(pdf.metadata.get("Author", "N/A"))[:50],
+                    "Créateur": str(pdf.metadata.get("Creator", "N/A"))[:50],
+                    "Producteur": str(pdf.metadata.get("Producer", "N/A"))[:50],
+                    "Date création": str(pdf.metadata.get("CreationDate", "N/A"))[:50],
+                    "Date modif": str(pdf.metadata.get("ModDate", "N/A"))[:50],
+                }
+            
+            # Texte
+            for page in pdf.pages:
+                texte += page.extract_text() or ""
         
         return PDFAnalysis(
             texte=texte,
@@ -242,7 +250,7 @@ def calculer_verdict(math: MathResult, forensic: ForensicResult) -> Verdict:
 
 
 def build_report_pdf(verdict: Verdict, forensic: ForensicResult) -> bytes:
-    """Génère un rapport PDF professionnel."""
+    """Génère un rapport PDF professionnel avec ReportLab."""
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4, topMargin=15*mm, bottomMargin=15*mm)
     
