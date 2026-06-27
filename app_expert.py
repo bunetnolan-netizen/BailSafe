@@ -14,13 +14,24 @@ from email import encoders
 from io import BytesIO
 
 import streamlit as st
-import PyPDF2
-from reportlab.lib.pagesizes import A4
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import mm
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
-from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
-from reportlab.lib import colors
+
+try:
+    import PyPDF2
+    from PyPDF2 import PdfReader
+except ImportError:
+    st.error("❌ PyPDF2 not installed. Run: pip install PyPDF2")
+    st.stop()
+
+try:
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import mm
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+    from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+    from reportlab.lib import colors
+except ImportError:
+    st.error("❌ ReportLab not installed. Run: pip install reportlab")
+    st.stop()
 
 # Configuration logging
 logging.basicConfig(level=logging.INFO)
@@ -56,10 +67,10 @@ class ForensicResult:
     hash_sha256: str
     xref_anormal: bool
     fraude_meta: bool
-    logiciels_detectes: list[str]
+    logiciels_detectes: list
     javascript_suspect: bool
     fichiers_incorpores: bool
-    fonts_suspectes: list[str]
+    fonts_suspectes: list
     score_risque_forensic: int
 
 
@@ -81,7 +92,7 @@ def extract_pdf_content(fichier_pdf) -> PDFAnalysis:
         hash_sha256 = hashlib.sha256(pdf_bytes).hexdigest()
         
         # Parse PDF
-        reader = PyPDF2.PdfReader(BytesIO(pdf_bytes))
+        reader = PdfReader(BytesIO(pdf_bytes))
         texte = ""
         for page in reader.pages:
             texte += page.extract_text() or ""
@@ -89,11 +100,11 @@ def extract_pdf_content(fichier_pdf) -> PDFAnalysis:
         # Métadonnées
         metadata = reader.metadata or {}
         metadata_dict = {
-            "Auteur": metadata.get("/Author", "N/A"),
-            "Créateur": metadata.get("/Creator", "N/A"),
-            "Producteur": metadata.get("/Producer", "N/A"),
-            "Date création": metadata.get("/CreationDate", "N/A"),
-            "Date modif": metadata.get("/ModDate", "N/A"),
+            "Auteur": str(metadata.get("/Author", "N/A"))[:50],
+            "Créateur": str(metadata.get("/Creator", "N/A"))[:50],
+            "Producteur": str(metadata.get("/Producer", "N/A"))[:50],
+            "Date création": str(metadata.get("/CreationDate", "N/A"))[:50],
+            "Date modif": str(metadata.get("/ModDate", "N/A"))[:50],
         }
         
         return PDFAnalysis(
@@ -166,7 +177,8 @@ def analyser_forensic(analysis: PDFAnalysis) -> ForensicResult:
     # Outils d'édition détectés
     outils_suspects = ["adobe", "indesign", "photoshop", "gimp", "canva", "affinity"]
     logiciels = []
-    for creator in [metadata.get("Créateur", ""), metadata.get("Producteur", "")]:
+    for key in ["Créateur", "Producteur"]:
+        creator = metadata.get(key, "")
         if creator:
             for outil in outils_suspects:
                 if outil in creator.lower():
@@ -195,7 +207,7 @@ def analyser_forensic(analysis: PDFAnalysis) -> ForensicResult:
         score += 15
     
     # SHA-256
-    hash_val = hashlib.sha256(str(analysis.metadata).encode()).hexdigest()
+    hash_val = hashlib.sha256(str(metadata).encode()).hexdigest()
     
     return ForensicResult(
         hash_sha256=hash_val,
@@ -443,7 +455,7 @@ def envoyer_rapport(secrets: AppSecrets, email_dest: str, pdf_bytes: bytes, file
         part = MIMEBase('application', 'octet-stream')
         part.set_payload(pdf_bytes)
         encoders.encode_base64(part)
-        part.add_header('Content-Disposition', f'attachment; filename= {filename}')
+        part.add_header('Content-Disposition', f'attachment; filename={filename}')
         msg.attach(part)
         
         # Envoi SMTP
@@ -743,7 +755,7 @@ def main() -> None:
     """Point d'entrée principal."""
     st.set_page_config(
         page_title="BailSafe | Expert",
-        page_icon="🕵️",
+        page_icon="🛡️",
         layout="wide",
         initial_sidebar_state="collapsed"
     )
