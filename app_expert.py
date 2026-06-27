@@ -32,9 +32,12 @@ try:
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
     from reportlab.lib.units import mm
-    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-    from reportlab.lib.enums import TA_CENTER, TA_LEFT
+    from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer, Table,
+                                    TableStyle, Flowable, KeepTogether)
+    from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
     from reportlab.lib import colors
+    from reportlab.lib.colors import HexColor
+    from reportlab.pdfgen import canvas as rl_canvas
 except ImportError:
     st.error("❌ reportlab non installé. Lancez : pip install -r requirements.txt")
     st.stop()
@@ -351,161 +354,349 @@ def calculer_verdict(math: MathResult, forensic: ForensicResult) -> Verdict:
     )
 
 
-# ============== RAPPORT PDF ==============
+# ============== RAPPORT PDF (mise en page professionnelle) ==============
+
+# Palette de marque
+INK = HexColor('#0F172A')        # navy
+INK2 = HexColor('#1E293B')
+AMBER = HexColor('#F59E0B')
+SLATE = HexColor('#475569')
+SLATE_LT = HexColor('#94A3B8')
+LINE = HexColor('#E2E8F0')
+ROW_ALT = HexColor('#F8FAFC')
+GREEN = HexColor('#16A34A')
+RED = HexColor('#DC2626')
+ORANGE = HexColor('#D97706')
+
+
+def _status_visuals(score: int):
+    """(couleur, teinte de fond, libellé court, libellé long)."""
+    if score >= 70:
+        return RED, HexColor('#FEF2F2'), "RISQUE ÉLEVÉ", "Anomalies majeures — vérification humaine obligatoire"
+    if score >= 40:
+        return ORANGE, HexColor('#FFF7ED'), "VIGILANCE", "Anomalies modérées — vérification humaine recommandée"
+    return GREEN, HexColor('#F0FDF4'), "CONFORME", "Aucune anomalie technique détectée"
+
+
+class NumberedCanvas(rl_canvas.Canvas):
+    """En-tête de marque + pied de page avec « Page X sur Y » sur chaque page."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._saved_states = []
+
+    def showPage(self):
+        self._saved_states.append(dict(self.__dict__))
+        self._startPage()
+
+    def save(self):
+        total = len(self._saved_states)
+        for state in self._saved_states:
+            self.__dict__.update(state)
+            self._draw_furniture(total)
+            super().showPage()
+        super().save()
+
+    def _draw_furniture(self, total):
+        w, h = A4
+        # --- En-tête ---
+        self.setFillColor(INK)
+        self.rect(0, h - 46, w, 46, fill=1, stroke=0)
+        self.setFillColor(AMBER)
+        self.rect(0, h - 49, w, 3, fill=1, stroke=0)
+        # Bouclier stylisé
+        self.setFillColor(AMBER)
+        self.setStrokeColor(AMBER)
+        self.setLineWidth(1.4)
+        sx, sy = 42, h - 30
+        self.setFont('Helvetica-Bold', 17)
+        self.setFillColor(colors.white)
+        self.drawString(40, h - 30, "BAIL")
+        bail_w = self.stringWidth("BAIL", 'Helvetica-Bold', 17)
+        self.setFillColor(AMBER)
+        self.drawString(40 + bail_w, h - 30, "SAFE")
+        self.setFont('Helvetica', 7.5)
+        self.setFillColor(HexColor('#CBD5E1'))
+        self.drawString(42, h - 41, "AUDIT ANTI-FRAUDE LOCATIF · ANALYSE FORENSIQUE")
+        self.setFont('Helvetica', 7.5)
+        self.setFillColor(HexColor('#CBD5E1'))
+        self.drawRightString(w - 40, h - 30, "RAPPORT D'AUDIT")
+        self.drawRightString(w - 40, h - 41, "CONFIDENTIEL")
+        # --- Pied de page ---
+        self.setStrokeColor(LINE)
+        self.setLineWidth(0.6)
+        self.line(40, 34, w - 40, 34)
+        self.setFont('Helvetica', 7.5)
+        self.setFillColor(SLATE_LT)
+        self.drawString(40, 22, "BailSafe · bunetnolan@gmail.com · Sainte-Rose, Guadeloupe")
+        self.drawCentredString(w / 2, 22, "Document confidentiel — destiné au bailleur")
+        self.drawRightString(w - 40, 22, f"Page {self._pageNumber} sur {total}")
+
+
+class ScoreGauge(Flowable):
+    """Bandeau verdict : pastille de statut, score géant et jauge horizontale."""
+
+    def __init__(self, score, width, color, tint, label_court, label_long):
+        super().__init__()
+        self.score = max(0, min(int(score), 100))
+        self.width = width
+        self.height = 96
+        self.color = color
+        self.tint = tint
+        self.label_court = label_court
+        self.label_long = label_long
+
+    def wrap(self, *args):
+        return (self.width, self.height)
+
+    def draw(self):
+        c = self.canv
+        w, h = self.width, self.height
+        # Fond teinté + cadre
+        c.setFillColor(self.tint)
+        c.setStrokeColor(self.color)
+        c.setLineWidth(1.2)
+        c.roundRect(0, 0, w, h, 10, fill=1, stroke=1)
+        # Barre d'accent gauche
+        c.setFillColor(self.color)
+        c.roundRect(0, 0, 7, h, 3, fill=1, stroke=0)
+        # Pastille de statut
+        pad = 22
+        c.setFillColor(self.color)
+        c.roundRect(pad, h - 36, 132, 20, 10, fill=1, stroke=0)
+        c.setFillColor(colors.white)
+        c.setFont('Helvetica-Bold', 9.5)
+        c.drawCentredString(pad + 66, h - 30, self.label_court)
+        # Libellé long
+        c.setFillColor(INK2)
+        c.setFont('Helvetica-Bold', 11)
+        c.drawString(pad, h - 56, "Indice d'anomalie documentaire")
+        c.setFillColor(SLATE)
+        c.setFont('Helvetica', 8.5)
+        c.drawString(pad, h - 69, self.label_long)
+        # Score géant (droite)
+        c.setFillColor(self.color)
+        c.setFont('Helvetica-Bold', 40)
+        c.drawRightString(w - 24, h - 46, str(self.score))
+        c.setFillColor(SLATE_LT)
+        c.setFont('Helvetica', 11)
+        c.drawRightString(w - 24, h - 60, "/ 100")
+        # Jauge
+        gx, gy, gw, gh = pad, 16, w - pad - 24, 9
+        c.setFillColor(HexColor('#E5E7EB'))
+        c.roundRect(gx, gy, gw, gh, 4.5, fill=1, stroke=0)
+        c.setFillColor(self.color)
+        fill_w = max(gh, gw * self.score / 100.0)
+        c.roundRect(gx, gy, fill_w, gh, 4.5, fill=1, stroke=0)
+        # Graduations 40 / 70
+        c.setStrokeColor(colors.white)
+        c.setLineWidth(1)
+        for seuil in (40, 70):
+            mx = gx + gw * seuil / 100.0
+            c.line(mx, gy, mx, gy + gh)
+
+
+def _section_title(text, styles):
+    """Titre de section avec filet ambre."""
+    return Paragraph(
+        f'<font color="#0F172A"><b>{text}</b></font>',
+        ParagraphStyle('Sec', parent=styles['Normal'], fontSize=12.5,
+                       fontName='Helvetica-Bold', textColor=INK, spaceBefore=4, spaceAfter=2))
+
+
+def _signal_table(rows, col_widths):
+    """rows = list of (label, detail, flag_bool|None, value_text).
+    flag None = neutre (info). True = alerte. False = OK."""
+    data = []
+    styles_extra = []
+    for i, (label, detail, flag, value) in enumerate(rows):
+        if flag is None:
+            badge, bcolor, btext = ROW_ALT, SLATE, value
+        elif flag:
+            badge, bcolor, btext = HexColor('#FEE2E2'), RED, value or "DÉTECTÉ"
+        else:
+            badge, bcolor, btext = HexColor('#DCFCE7'), GREEN, value or "OK"
+        data.append([label, detail, btext])
+        r = len(data) - 1
+        styles_extra.append(('BACKGROUND', (2, r), (2, r), badge))
+        styles_extra.append(('TEXTCOLOR', (2, r), (2, r), bcolor))
+        styles_extra.append(('FONTNAME', (2, r), (2, r), 'Helvetica-Bold'))
+        if r % 2 == 1:
+            styles_extra.append(('BACKGROUND', (0, r), (1, r), ROW_ALT))
+    t = Table(data, colWidths=col_widths)
+    base = [
+        ('TEXTCOLOR', (0, 0), (0, -1), INK2),
+        ('TEXTCOLOR', (1, 0), (1, -1), SLATE),
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 8.8),
+        ('ALIGN', (2, 0), (2, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING', (0, 0), (-1, -1), 8), ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+        ('LEFTPADDING', (0, 0), (-1, -1), 12), ('RIGHTPADDING', (0, 0), (-1, -1), 10),
+        ('LINEBELOW', (0, 0), (-1, -2), 0.5, LINE),
+        ('BOX', (0, 0), (-1, -1), 0.8, LINE),
+    ]
+    t.setStyle(TableStyle(base + styles_extra))
+    return t
+
 
 def build_report_pdf(verdict: Verdict, forensic: ForensicResult, math: MathResult) -> bytes:
     buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4, topMargin=15 * mm, bottomMargin=15 * mm)
+    doc = SimpleDocTemplate(
+        buffer, pagesize=A4,
+        leftMargin=40, rightMargin=40, topMargin=70, bottomMargin=46,
+        title="Rapport d'audit BailSafe", author="BailSafe",
+    )
+    usable = doc.width - 12  # largeur utile (cadre ReportLab : 6 pt de padding par côté)
     styles = getSampleStyleSheet()
+    normal = ParagraphStyle('N', parent=styles['Normal'], fontSize=9.2,
+                            textColor=SLATE, leading=14, spaceAfter=5)
+    small = ParagraphStyle('S', parent=styles['Normal'], fontSize=8,
+                           textColor=SLATE_LT, leading=11)
+    meta_lbl = ParagraphStyle('ML', parent=styles['Normal'], fontSize=7.5,
+                              textColor=SLATE_LT, fontName='Helvetica-Bold', leading=10)
+    meta_val = ParagraphStyle('MV', parent=styles['Normal'], fontSize=9,
+                              textColor=INK2, fontName='Helvetica-Bold', leading=12)
 
-    title_style = ParagraphStyle('CustomTitle', parent=styles['Heading1'], fontSize=24,
-                                 textColor=colors.HexColor('#0f172a'), spaceAfter=6,
-                                 alignment=TA_CENTER, fontName='Helvetica-Bold')
-    subtitle_style = ParagraphStyle('CustomSubtitle', parent=styles['Normal'], fontSize=12,
-                                    textColor=colors.HexColor('#f59e0b'), alignment=TA_CENTER,
-                                    spaceAfter=20, fontName='Helvetica-Bold')
-    header_style = ParagraphStyle('Header', parent=styles['Heading2'], fontSize=14,
-                                  textColor=colors.HexColor('#1e293b'), spaceAfter=12,
-                                  fontName='Helvetica-Bold')
-    normal_style = ParagraphStyle('NormalCustom', parent=styles['Normal'], fontSize=10,
-                                  textColor=colors.HexColor('#475569'), alignment=TA_LEFT,
-                                  spaceAfter=8)
+    color, tint, label_court, label_long = _status_visuals(verdict.score_risque)
+    ref = f"BS-{datetime.now().strftime('%Y%m%d')}-{forensic.hash_sha256[:6].upper()}"
 
     story = []
-    story.append(Paragraph("BAILSAFE", title_style))
-    story.append(Paragraph("Rapport d'Audit Documentaire Anti-Fraude", subtitle_style))
-    story.append(Spacer(1, 12))
 
-    info_data = [
-        ["Date d'analyse", verdict.date_analyse],
-        ["Empreinte SHA-256 du fichier", f"{forensic.hash_sha256[:32]}…"],
-        ["Confidentialité", "Rapport destiné au bailleur uniquement"],
-    ]
-    info_table = Table(info_data, colWidths=[60 * mm, 100 * mm])
-    info_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#f1f5f9')),
-        ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor('#475569')),
-        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, -1), 9),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 8), ('TOPPADDING', (0, 0), (-1, -1), 8),
-        ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#e2e8f0')),
-        ('LEFTPADDING', (0, 0), (-1, -1), 10),
+    # --- Bandeau méta (référence / date / empreinte) ---
+    meta = Table([[
+        [Paragraph("RÉFÉRENCE", meta_lbl), Paragraph(ref, meta_val)],
+        [Paragraph("DATE D'ANALYSE", meta_lbl), Paragraph(verdict.date_analyse, meta_val)],
+        [Paragraph("EMPREINTE SHA-256", meta_lbl),
+         Paragraph(f"{forensic.hash_sha256[:20]}…", meta_val)],
+    ]], colWidths=[usable / 3.0] * 3)
+    meta.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('LEFTPADDING', (0, 0), (0, 0), 0),
+        ('LINEAFTER', (0, 0), (0, 0), 0.6, LINE),
+        ('LINEAFTER', (1, 0), (1, 0), 0.6, LINE),
+        ('LEFTPADDING', (1, 0), (-1, 0), 16),
+        ('TOPPADDING', (0, 0), (-1, -1), 0), ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
     ]))
-    story.append(info_table)
-    story.append(Spacer(1, 20))
+    story.append(meta)
+    story.append(Spacer(1, 14))
 
-    story.append(Paragraph("VERDICT GLOBAL", header_style))
-    bg = colors.HexColor('#fef2f2') if verdict.score_risque >= 70 else (
-        colors.HexColor('#fff7ed') if verdict.score_risque >= 40 else colors.HexColor('#f0fdf4'))
-    verdict_data = [
-        ["Statut", verdict.statut],
-        ["Indice d'anomalie documentaire", f"{verdict.score_risque}/100"],
+    # --- Bandeau verdict (jauge) ---
+    story.append(ScoreGauge(verdict.score_risque, usable, color, tint, label_court, label_long))
+    story.append(Spacer(1, 18))
+
+    # --- Synthèse ---
+    nb_signaux = sum([forensic.xref_anormal, forensic.fraude_meta, forensic.date_modifiee,
+                      forensic.javascript_suspect, forensic.fichiers_incorpores,
+                      forensic.annotations_suspectes, math.fraude_math])
+    synth = (f"L'analyse technique du document a relevé <b>{nb_signaux} signal(aux) d'alerte</b> "
+             f"sur {7} contrôles effectués (structure du fichier, métadonnées, cohérence "
+             f"financière). Ce rapport détaille chaque contrôle ci-dessous. Il porte exclusivement "
+             f"sur l'intégrité technique du document, non sur la personne du candidat.")
+    story.append(_section_title("Synthèse", styles))
+    story.append(Spacer(1, 4))
+    story.append(Paragraph(synth, normal))
+    story.append(Spacer(1, 14))
+
+    # --- Analyse forensique ---
+    story.append(_section_title("Analyse forensique du fichier", styles))
+    story.append(Spacer(1, 6))
+    forensic_rows = [
+        ("Structure du fichier (xref)",
+         f"{forensic.incremental_updates} sauvegarde(s) — "
+         + ("document remanié après émission" if forensic.xref_anormal else "structure d'origine"),
+         forensic.xref_anormal, "REMANIÉ" if forensic.xref_anormal else "INTÈGRE"),
+        ("Outils d'édition graphique",
+         ", ".join(forensic.logiciels_detectes) or "Aucun outil de retouche détecté",
+         forensic.fraude_meta, None),
+        ("Date de modification",
+         "Modifié après création" if forensic.date_modifiee else "Cohérente avec la création",
+         forensic.date_modifiee, None),
+        ("JavaScript embarqué",
+         "Code exécutable présent" if forensic.javascript_suspect else "Aucun code détecté",
+         forensic.javascript_suspect, None),
+        ("Fichiers incorporés",
+         "Pièces jointes masquées" if forensic.fichiers_incorpores else "Aucun fichier incorporé",
+         forensic.fichiers_incorpores, None),
+        ("Annotations superposées",
+         "Texte/tampon ajouté par-dessus" if forensic.annotations_suspectes else "Aucune surcouche",
+         forensic.annotations_suspectes, None),
+        ("Polices détectées", f"{len(forensic.fonts_detectees)} police(s) dans le document",
+         None, str(len(forensic.fonts_detectees))),
     ]
-    vt = Table(verdict_data, colWidths=[55 * mm, 105 * mm])
-    vt.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#f1f5f9')),
-        ('BACKGROUND', (1, 0), (1, -1), bg),
-        ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor('#1e293b')),
-        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, -1), 10),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 10), ('TOPPADDING', (0, 0), (-1, -1), 10),
-        ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#e2e8f0')),
-        ('LEFTPADDING', (0, 0), (-1, -1), 12),
-    ]))
-    story.append(vt)
+    story.append(_signal_table(forensic_rows, [56 * mm, 78 * mm, 26 * mm]))
     story.append(Spacer(1, 16))
 
-    story.append(Paragraph("ANALYSE FORENSIQUE", header_style))
-    forensic_data = [
-        ["Empreinte SHA-256", f"{forensic.hash_sha256[:24]}…"],
-        ["Sauvegardes successives (xref)",
-         f"Oui — {forensic.incremental_updates} (document remanie)" if forensic.xref_anormal
-         else "Non — structure d'origine"],
-        ["Outils d'édition détectés", ", ".join(forensic.logiciels_detectes) or "Aucun"],
-        ["Date de modification postérieure", "Oui" if forensic.date_modifiee else "Non"],
-        ["JavaScript embarqué", "Détecté" if forensic.javascript_suspect else "Non"],
-        ["Fichiers incorporés", "Oui" if forensic.fichiers_incorpores else "Non"],
-        ["Annotations superposées", "Oui" if forensic.annotations_suspectes else "Non"],
-        ["Polices détectées", str(len(forensic.fonts_detectees))],
-        ["Score forensique", f"{forensic.score_risque_forensic}/100"],
-    ]
-    ft = Table(forensic_data, colWidths=[60 * mm, 100 * mm])
-    ft.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#f1f5f9')),
-        ('BACKGROUND', (1, 0), (1, -1), colors.HexColor('#f9fafb')),
-        ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor('#1e293b')),
-        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, -1), 9),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 9), ('TOPPADDING', (0, 0), (-1, -1), 9),
-        ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#e2e8f0')),
-        ('LEFTPADDING', (0, 0), (-1, -1), 12),
-    ]))
-    story.append(ft)
-    story.append(Spacer(1, 16))
-
+    # --- Cohérence financière ---
     if not math.est_scan and math.calcul_theorique > 0:
-        story.append(Paragraph("COHÉRENCE FINANCIÈRE", header_style))
-        math_data = [
-            ["Net imposable mensuel", f"{math.net_imposable_mensuel:.2f} EUR"],
-            ["Mois cumulés", str(math.mois_cumules)],
-            ["Cumul théorique attendu", f"{math.calcul_theorique:.2f} EUR"],
-            ["Cumul imposable déclaré", f"{math.cumul_imposable:.2f} EUR"],
-            ["Écart", f"{math.ecart:.2f} EUR ({'ANOMALIE' if math.fraude_math else 'OK'})"],
+        story.append(_section_title("Cohérence financière", styles))
+        story.append(Spacer(1, 6))
+        seuil = max(100.0, math.calcul_theorique * 0.08)
+        fin_rows = [
+            ("Net imposable mensuel", f"{math.net_imposable_mensuel:,.2f} €".replace(",", " "),
+             None, ""),
+            ("Mois cumulés", f"{math.mois_cumules} mois", None, ""),
+            ("Cumul théorique attendu", f"{math.calcul_theorique:,.2f} €".replace(",", " "),
+             None, ""),
+            ("Cumul imposable déclaré", f"{math.cumul_imposable:,.2f} €".replace(",", " "),
+             None, ""),
+            ("Écart vs seuil de tolérance",
+             f"{math.ecart:,.2f} € (seuil {seuil:,.0f} €)".replace(",", " "),
+             math.fraude_math, "ANOMALIE" if math.fraude_math else "COHÉRENT"),
         ]
-        mt = Table(math_data, colWidths=[60 * mm, 100 * mm])
-        mt.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#f1f5f9')),
-            ('BACKGROUND', (1, 0), (1, -1), colors.HexColor('#f9fafb')),
-            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, -1), 9),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 9), ('TOPPADDING', (0, 0), (-1, -1), 9),
-            ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#e2e8f0')),
-            ('LEFTPADDING', (0, 0), (-1, -1), 12),
-        ]))
-        story.append(mt)
+        story.append(_signal_table(fin_rows, [56 * mm, 78 * mm, 26 * mm]))
         story.append(Spacer(1, 16))
 
-    story.append(Paragraph("RECOMMANDATIONS", header_style))
+    # --- Recommandations ---
+    story.append(_section_title("Recommandations", styles))
+    story.append(Spacer(1, 4))
     if verdict.score_risque >= 70:
         recs = [
-            "Suspendre la décision et demander l'original du document au candidat.",
-            "Vérification humaine complémentaire (contact employeur, organisme émetteur).",
-            "La décision finale d'accepter ou refuser le dossier appartient au bailleur.",
+            "<b>Suspendre la décision</b> et demander l'original du document au candidat.",
+            "Procéder à une <b>vérification humaine complémentaire</b> (employeur, organisme émetteur).",
+            "La <b>décision finale</b> d'accepter ou refuser le dossier appartient au bailleur.",
         ]
     elif verdict.score_risque >= 40:
         recs = [
-            "Signaler les anomalies détectées au bailleur.",
-            "Vérification humaine rapide recommandée avant signature.",
-            "Demander une explication écrite au candidat.",
+            "<b>Signaler les anomalies</b> détectées au bailleur.",
+            "<b>Vérification humaine rapide</b> recommandée avant signature.",
+            "<b>Demander une explication écrite</b> au candidat.",
         ]
     else:
         recs = [
-            "Aucune anomalie technique — le dossier peut être instruit normalement.",
-            "Ce rapport peut servir de justificatif de diligence.",
+            "Aucune anomalie technique — le dossier peut être <b>instruit normalement</b>.",
+            "Ce rapport peut servir de <b>justificatif de diligence</b>.",
         ]
-    for rec in recs:
-        story.append(Paragraph(f"• {rec}", normal_style))
-    story.append(Spacer(1, 20))
+    rec_style = ParagraphStyle('Rec', parent=normal, leftIndent=14, firstLineIndent=-12,
+                               bulletIndent=0, spaceAfter=6)
+    for r in recs:
+        story.append(Paragraph(f'<font color="#F59E0B"><b>›</b></font>&nbsp;&nbsp;{r}', rec_style))
+    story.append(Spacer(1, 14))
 
-    story.append(Paragraph("AVERTISSEMENT LÉGAL", header_style))
-    legal_text = ("Ce rapport est une analyse technique automatisee fournie a titre consultatif. "
-                  "Il porte sur l'integrite et la structure du document, non sur la personne. Il ne "
-                  "constitue pas une garantie juridique et ne vaut pas decision : la decision "
+    # --- Avertissement légal (encadré) ---
+    legal_text = ("Ce rapport est une analyse technique automatisée fournie à titre consultatif. "
+                  "Il porte sur l'intégrité et la structure du document, non sur la personne. Il ne "
+                  "constitue pas une garantie juridique et ne vaut pas décision : la décision "
                   "d'accepter ou de refuser un dossier appartient exclusivement au bailleur (aucune "
-                  "decision automatisee au sens de l'article 22 du RGPD). BailSafe ne peut etre tenu "
-                  "responsable des decisions prises sur la base de ce rapport. Une falsification suivie "
-                  "d'une impression puis d'un nouveau scan peut echapper a l'analyse.")
-    story.append(Paragraph(legal_text, normal_style))
-    story.append(Spacer(1, 20))
+                  "décision automatisée au sens de l'article 22 du RGPD). BailSafe ne peut être tenu "
+                  "responsable des décisions prises sur la base de ce rapport. Une falsification suivie "
+                  "d'une impression puis d'un nouveau scan peut échapper à l'analyse. Données "
+                  "supprimées automatiquement sous 30 jours.")
+    legal_box = Table([[Paragraph(
+        f'<font color="#475569"><b>AVERTISSEMENT LÉGAL — </b></font>'
+        f'<font color="#64748B">{legal_text}</font>',
+        ParagraphStyle('L', parent=styles['Normal'], fontSize=7.6, leading=11,
+                       textColor=SLATE))]], colWidths=[usable])
+    legal_box.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), HexColor('#F8FAFC')),
+        ('BOX', (0, 0), (-1, -1), 0.6, LINE),
+        ('LINEBEFORE', (0, 0), (0, -1), 2.5, AMBER),
+        ('TOPPADDING', (0, 0), (-1, -1), 10), ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
+        ('LEFTPADDING', (0, 0), (-1, -1), 14), ('RIGHTPADDING', (0, 0), (-1, -1), 14),
+    ]))
+    story.append(legal_box)
 
-    footer_text = ("Rapport genere par BailSafe — Audit Anti-Fraude Locative<br/>"
-                   "bunetnolan@gmail.com · Sainte-Rose, Guadeloupe<br/>"
-                   "<font size=8>Donnees supprimees automatiquement sous 30 jours</font>")
-    story.append(Paragraph(footer_text, ParagraphStyle(
-        'Footer', parent=styles['Normal'], fontSize=9,
-        textColor=colors.HexColor('#94a3b8'), alignment=TA_CENTER)))
-
-    doc.build(story)
+    doc.build(story, canvasmaker=NumberedCanvas)
     buffer.seek(0)
     return buffer.getvalue()
 
