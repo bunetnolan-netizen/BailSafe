@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import os
 import re
 import logging
 from dataclasses import dataclass
@@ -490,15 +491,34 @@ def is_valid_email(email: str) -> bool:
 
 
 def get_secrets() -> AppSecrets:
-    """Charge les secrets depuis Streamlit."""
-    try:
-        return AppSecrets(
-            email_expediteur=st.secrets["EMAIL_EXPEDITEUR"],
-            mot_de_passe_email=st.secrets["MOT_DE_PASSE_EMAIL"],
-        )
-    except Exception:
-        st.warning("⚠️ Secrets non configurés — mode démo.")
-        return AppSecrets(email_expediteur="", mot_de_passe_email="")
+    """Charge les secrets : variables d'environnement (Render) puis st.secrets (local)."""
+    email = os.getenv("EMAIL_EXPEDITEUR")
+    mdp = os.getenv("MOT_DE_PASSE_EMAIL")
+    if not email or not mdp:
+        try:
+            email = st.secrets["EMAIL_EXPEDITEUR"]
+            mdp = st.secrets["MOT_DE_PASSE_EMAIL"]
+        except Exception:
+            st.warning("⚠️ Secrets non configurés — mode démo.")
+            return AppSecrets(email_expediteur="", mot_de_passe_email="")
+    return AppSecrets(email_expediteur=email, mot_de_passe_email=mdp)
+
+
+def check_password() -> bool:
+    """Porte d'accès : l'app expert ne doit pas être publique (données sensibles).
+    Définir la variable d'environnement EXPERT_PASSWORD sur Render pour l'activer."""
+    expected = os.getenv("EXPERT_PASSWORD")
+    if not expected:
+        return True  # aucun mot de passe défini -> accès libre (à éviter en production)
+    if st.session_state.get("auth_ok"):
+        return True
+    pwd = st.text_input("🔒 Mot de passe d'accès expert", type="password")
+    if pwd:
+        if pwd == expected:
+            st.session_state["auth_ok"] = True
+            return True
+        st.error("Mot de passe incorrect.")
+    return False
 
 
 # ============== INTERFACE STREAMLIT ==============
@@ -795,7 +815,10 @@ def main() -> None:
     [data-testid="stMetricDelta"] { font-size: 14px; }
     </style>
     """, unsafe_allow_html=True)
-    
+
+    if not check_password():
+        st.stop()
+
     afficher_interface_expert()
 
 
