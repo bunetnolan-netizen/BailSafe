@@ -23,12 +23,6 @@ except ImportError:
     st.stop()
 
 try:
-    from fpdf import FPDF
-except ImportError:
-    st.error("❌ fpdf2 not installed. Run: pip install -r requirements_merged.txt")
-    st.stop()
-
-try:
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
     from reportlab.lib.units import mm
@@ -171,7 +165,7 @@ def analyser_math(texte: str, net_mensuel: float, nb_mois: int, cumul_saisi: flo
     """Analyse cohérence mathématique."""
     calcul_theo = net_mensuel * nb_mois
     ecart = abs(cumul_saisi - calcul_theo)
-    seuil = max(100.0, calcul_theo * 0.08)
+    seuil = max(50.0, calcul_theo * 0.05)  # FIX: 5% min 50€ (était 8% min 100€)
     fraude = ecart > seuil
 
     return MathResult(
@@ -207,14 +201,20 @@ def analyser_forensic(analysis: PDFAnalysis) -> ForensicResult:
     xref_anormal = xref_count > 1
 
     # Outils d'édition détectés dans les métadonnées
-    outils_suspects = ["adobe photoshop", "photoshop", "gimp", "canva", "affinity", "inkscape", "paint"]
+    # FIX: liste élargie + recherche dans tous les champs metadata
+    outils_suspects = [
+        "photoshop", "gimp", "canva", "affinity", "inkscape", "paint",
+        "libreoffice", "pdf24", "smallpdf", "ilovepdf", "pdfcreator",
+        "microsoft word", "microsoft office", "scribus", "preview"
+    ]
     logiciels = []
-    for key in ["Créateur", "Producteur"]:
-        creator = metadata.get(key, "").lower()
-        if creator and creator != "n/a":
+    for key, val in metadata.items():  # FIX: tous les champs, pas seulement Créateur/Producteur
+        champ = str(val).lower()
+        if champ and champ != "n/a":
             for outil in outils_suspects:
-                if outil in creator:
-                    logiciels.append(outil.title())
+                label = outil.title()
+                if outil in champ and label not in logiciels:
+                    logiciels.append(label)
 
     # JavaScript embarqué (signe d'un PDF actif/modifié)
     javascript = b"/JavaScript" in pdf_bytes or b"/JS " in pdf_bytes
@@ -258,6 +258,9 @@ def calculer_verdict(math: MathResult, forensic: ForensicResult) -> Verdict:
     score_math = 50 if math.fraude_math else 0
     score_forensic = forensic.score_risque_forensic
     score_global = int((score_math + score_forensic) / 2)
+    # FIX: fraude math détectée = minimum modéré (50), jamais vert
+    if math.fraude_math and score_global < 50:
+        score_global = 50
 
     if score_global >= 80:
         statut = "🔴 ANOMALIES MAJEURES sur le document — Vérification humaine obligatoire"
@@ -464,7 +467,7 @@ def get_report_filename(statut: str) -> str:
     date = datetime.now().strftime("%Y%m%d_%H%M%S")
     if "MAJEURES" in statut:
         return f"BailSafe_ALERTE_{date}.pdf"
-    elif "MODEREES" in statut:
+    elif "MOD" in statut and "ANOMALIE" in statut:  # FIX: couvre "MODÉRÉES" avec ou sans accent
         return f"BailSafe_ATTENTION_{date}.pdf"
     else:
         return f"BailSafe_CONFORME_{date}.pdf"
@@ -655,7 +658,7 @@ def afficher_interface_expert() -> None:
             math = analyser_math(analysis.texte, net_saisi, int(nb_mois), cumul_saisi)
             st.session_state["math_result"] = math
 
-            seuil = max(100.0, math.calcul_theorique * 0.08)
+            seuil = max(50.0, math.calcul_theorique * 0.05)  # FIX: cohérent avec analyser_math
 
             st.markdown("#### Résultats de l'analyse")
             m1, m2, m3 = st.columns(3)
@@ -668,7 +671,7 @@ def afficher_interface_expert() -> None:
                          delta_color="inverse" if math.fraude_math else "off")
             with m3:
                 st.metric("Seuil d'alerte", f"{seuil:.2f} €",
-                         help="8% du cumul théorique, minimum 100€")
+                         help="5% du cumul théorique, minimum 50€")
 
             st.divider()
 
@@ -845,6 +848,8 @@ def afficher_interface_expert() -> None:
             "Il ne constitue pas une garantie juridique. "
             "Un document imprimé puis re-scanné après modification peut échapper à l'analyse."
         )
+
+
 
 
 def main() -> None:
