@@ -1,8 +1,7 @@
 import streamlit as st
 import smtplib
-import random
-import string
-from datetime import datetime
+import re
+from typing import Tuple
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
@@ -19,36 +18,38 @@ st.set_page_config(
 FORMSPREE_ENDPOINT = "https://formspree.io/f/xqevqgjo"
 PAYPAL_LINK        = "https://paypal.me/NolanBunet/20EUR"
 CONTACT_EMAIL      = "bunetnolan@gmail.com"
+MAX_PDF_BYTES      = 10 * 1024 * 1024  # 10 Mo
+EMAIL_REGEX        = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 # ─── HELPERS ──────────────────────────────────────────────────────────────────
-def get_secrets():
+def get_secrets() -> Tuple[str, str]:
     email = st.secrets.get("EMAIL_EXPEDITEUR", "") or ""
     pwd   = st.secrets.get("MOT_DE_PASSE_EMAIL", "") or ""
     return email, pwd
 
-def generer_numero_commande():
-    """Génère un identifiant unique BS-AAAA-XXXX"""
-    annee = datetime.now().year
-    code  = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))
-    return f"BS-{annee}-{code}"
+def email_valide(email: str) -> bool:
+    return bool(EMAIL_REGEX.match(email.strip()))
 
-def envoyer_document(pdf_bytes: bytes, filename: str, client_email: str, numero_commande: str) -> tuple[bool, str]:
-    """Envoie le PDF client à Nolan par email."""
+def envoyer_document(pdf_bytes: bytes, filename: str, client_email: str) -> Tuple[bool, str]:
+    """Envoie le PDF client à Nolan par email via Gmail SMTP."""
+    if len(pdf_bytes) > MAX_PDF_BYTES:
+        return False, f"Fichier trop lourd ({len(pdf_bytes)//1024//1024} Mo). Maximum 10 Mo."
     email_exp, mdp = get_secrets()
     if not email_exp or not mdp:
-        return False, "Secrets email non configurés."
+        return False, "Secrets email non configurés dans secrets.toml."
     try:
         msg = MIMEMultipart()
         msg["From"]    = email_exp
         msg["To"]      = CONTACT_EMAIL
-        msg["Subject"] = f"📎 Document BailSafe — Commande {numero_commande} — {client_email}"
+        msg["Subject"] = f"📎 Document BailSafe — {client_email} — {filename}"
 
         body = (
-            f"Nouvelle commande reçue.\n\n"
-            f"N° commande : {numero_commande}\n"
+            f"Nouveau document reçu via BailSafe.\n\n"
             f"Email client : {client_email}\n"
-            f"Fichier : {filename}\n\n"
-            f"Le document est en pièce jointe."
+            f"Fichier      : {filename}\n"
+            f"Taille       : {len(pdf_bytes)//1024} Ko\n\n"
+            f"Le document est en pièce jointe.\n"
+            f"Retrouvez la commande correspondante dans Formspree (même email client)."
         )
         msg.attach(MIMEText(body, "plain", "utf-8"))
 
@@ -68,10 +69,17 @@ def envoyer_document(pdf_bytes: bytes, filename: str, client_email: str, numero_
         return False, str(e)
 
 # ─── SESSION STATE ─────────────────────────────────────────────────────────────
-if "numero_commande" not in st.session_state:
-    st.session_state.numero_commande = None
 if "document_envoye" not in st.session_state:
     st.session_state.document_envoye = False
+
+# ─── VÉRIFICATION SECRETS AU DÉMARRAGE ────────────────────────────────────────
+_email_exp, _mdp = get_secrets()
+if not _email_exp or not _mdp:
+    st.warning(
+        "⚠️ **Configuration incomplète** : `EMAIL_EXPEDITEUR` ou `MOT_DE_PASSE_EMAIL` "
+        "absent de `.streamlit/secrets.toml`. L'envoi de documents ne fonctionnera pas.",
+        icon="⚠️"
+    )
 
 # ─── PAGE HTML (landing + formulaire Formspree) ────────────────────────────────
 html_content = f"""
@@ -696,60 +704,87 @@ html_content = f"""
 st.components.v1.html(html_content, height=5600, scrolling=True)
 
 # ─── SECTION UPLOAD STREAMLIT (hors iframe, après paiement) ───────────────────
-st.divider()
-
 st.markdown("""
-<div style="text-align:center;padding:20px 0 8px">
-    <div style="font-size:12px;letter-spacing:2px;text-transform:uppercase;color:#f59e0b;font-weight:700;margin-bottom:8px">// Étape suivante</div>
-    <h2 style="font-size:1.6rem;font-weight:800;color:#0f172a;margin-bottom:8px">📎 Déposez votre document ici</h2>
-    <p style="color:#475569;font-size:14px">Après avoir réglé le paiement PayPal, déposez votre PDF ci-dessous.<br>Nous l'analyserons et vous enverrons le rapport sous 24h.</p>
+<div style="background:#0f172a;padding:56px 24px 48px;text-align:center;margin-top:-8px">
+    <div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#f59e0b;font-weight:700;margin-bottom:12px">// Étape 2 — Après paiement</div>
+    <h2 style="font-size:1.8rem;font-weight:800;color:#fff;margin-bottom:12px">📎 Déposez votre document ici</h2>
+    <p style="color:#94a3b8;font-size:15px;max-width:560px;margin:0 auto;line-height:1.7">
+        Vous avez réglé le paiement ? Déposez votre PDF directement ci-dessous.<br>
+        Votre rapport vous sera envoyé sous 24h à l'adresse email indiquée.
+    </p>
 </div>
 """, unsafe_allow_html=True)
 
-with st.container():
-    col_left, col_center, col_right = st.columns([1, 2, 1])
-    with col_center:
-        if not st.session_state.document_envoye:
-            numero_input = st.text_input(
-                "Votre numéro de commande",
-                placeholder="Ex : BS-2026-A3K7",
-                help="Généré après soumission du formulaire ci-dessus"
-            )
-            email_input = st.text_input(
-                "Votre email",
-                placeholder="vous@email.com",
-                help="Le même que celui saisi dans le formulaire"
-            )
-            pdf_file = st.file_uploader(
-                "Votre document PDF",
-                type=["pdf"],
-                help="Fiche de paie, avis d'imposition, contrat de travail, relevé bancaire — Max 10 Mo"
-            )
+# Rappel paiement
+st.markdown("""
+<div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:8px;
+            padding:14px 20px;margin:20px auto;max-width:600px;font-size:13px;color:#b45309;text-align:center">
+    ⚠️ <strong>Déposez votre document uniquement après avoir effectué le paiement PayPal.</strong><br>
+    Sans paiement confirmé, l'analyse ne sera pas traitée.
+</div>
+""", unsafe_allow_html=True)
 
-            if pdf_file and numero_input and email_input:
-                if st.button("📤 Envoyer le document à BailSafe", type="primary", use_container_width=True):
-                    with st.spinner("Envoi en cours..."):
-                        ok, msg = envoyer_document(
-                            pdf_bytes=pdf_file.read(),
-                            filename=pdf_file.name,
-                            client_email=email_input.strip(),
-                            numero_commande=numero_input.strip().upper()
-                        )
-                    if ok:
-                        st.session_state.document_envoye = True
-                        st.rerun()
-                    else:
-                        st.error(f"Erreur d'envoi : {msg}. Contacte bunetnolan@gmail.com directement.")
-            elif pdf_file or numero_input or email_input:
-                st.info("Remplis tous les champs pour envoyer le document.")
-        else:
-            st.success("✅ Document reçu ! Votre rapport BailSafe vous sera envoyé sous 24h à l'adresse email indiquée.")
-            if st.button("Déposer un autre document"):
-                st.session_state.document_envoye = False
-                st.rerun()
+_, col_center, _ = st.columns([1, 2, 1])
+with col_center:
+    if not st.session_state.document_envoye:
+        email_input = st.text_input(
+            "Votre email *",
+            placeholder="vous@email.com",
+            help="Le même que celui saisi dans le formulaire de commande"
+        )
+        pdf_file = st.file_uploader(
+            "Votre document PDF *",
+            type=["pdf"],
+            help="Fiche de paie, avis d'imposition, contrat de travail, relevé bancaire — Max 10 Mo"
+        )
+
+        # Validation en temps réel
+        erreurs = []
+        if email_input and not email_valide(email_input):
+            erreurs.append("⚠️ Adresse email invalide.")
+        if pdf_file and pdf_file.size > MAX_PDF_BYTES:
+            erreurs.append(f"⚠️ Fichier trop lourd ({pdf_file.size//1024//1024} Mo). Maximum 10 Mo.")
+
+        for err in erreurs:
+            st.warning(err)
+
+        pret = pdf_file and email_input and email_valide(email_input) and (not pdf_file or pdf_file.size <= MAX_PDF_BYTES)
+
+        if pret:
+            if st.button("📤 Envoyer le document à BailSafe", type="primary", use_container_width=True):
+                pdf_bytes = pdf_file.read()  # lu une seule fois, immédiatement
+                with st.spinner("Envoi sécurisé en cours..."):
+                    ok, msg_retour = envoyer_document(
+                        pdf_bytes=pdf_bytes,
+                        filename=pdf_file.name,
+                        client_email=email_input.strip()
+                    )
+                if ok:
+                    st.session_state.document_envoye = True
+                    st.rerun()
+                else:
+                    st.error(f"Erreur d'envoi : {msg_retour}  \nContactez directement : bunetnolan@gmail.com")
+        elif email_input or pdf_file:
+            st.info("Remplis tous les champs correctement pour envoyer le document.")
+
+    else:
+        st.markdown("""
+<div style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.3);border-radius:10px;
+            padding:28px 24px;text-align:center;margin:8px 0">
+    <div style="font-size:36px;margin-bottom:12px">✅</div>
+    <div style="font-size:18px;font-weight:800;color:#065f46;margin-bottom:8px">Document reçu !</div>
+    <div style="font-size:14px;color:#047857;line-height:1.7">
+        Votre rapport BailSafe vous sera envoyé <strong>sous 24h</strong> à l'adresse email indiquée.<br>
+        Conservez votre email de confirmation comme référence.
+    </div>
+</div>
+""", unsafe_allow_html=True)
+        if st.button("Déposer un autre document", use_container_width=True):
+            st.session_state.document_envoye = False
+            st.rerun()
 
 st.markdown("""
-<p style="text-align:center;font-size:12px;color:#94a3b8;padding:12px 0 32px">
-    🔒 Votre PDF est transmis directement à Nolan Bunet via une connexion sécurisée. Supprimé sous 30 jours.
+<p style="text-align:center;font-size:12px;color:#94a3b8;padding:20px 0 40px">
+    🔒 Transmis via connexion sécurisée TLS · Supprimé sous 30 jours · Conforme RGPD
 </p>
 """, unsafe_allow_html=True)
