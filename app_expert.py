@@ -358,7 +358,7 @@ def build_report_pdf(verdict: Verdict, forensic: ForensicResult) -> bytes:
     verdict_table = Table(verdict_data, colWidths=[50*mm, 110*mm])
     verdict_table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#f1f5f9')),
-        ('BACKGROUND', (1, 0), (1, -1), colors.HexColor('#fef2f2') if verdict.score_risque >= 80 else colors.HexColor('#fff7ed')),
+        ('BACKGROUND', (1, 0), (1, -1), colors.HexColor('#fef2f2') if verdict.score_risque >= 65 else (colors.HexColor('#fff7ed') if verdict.score_risque >= 25 else colors.HexColor('#f0fdf4'))),
         ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor('#1e293b')),
         ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
         ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
@@ -404,13 +404,13 @@ def build_report_pdf(verdict: Verdict, forensic: ForensicResult) -> bytes:
 
     story.append(Paragraph("RECOMMANDATIONS", header_style))
 
-    if verdict.score_risque >= 80:
+    if verdict.score_risque >= 65:
         recs = [
             "Suspendre la decision et demander l'original du document au candidat.",
             "Proceder a une verification humaine complementaire (contact employeur, etc.).",
             "La decision finale d'accepter ou refuser le dossier appartient au bailleur.",
         ]
-    elif verdict.score_risque >= 50:
+    elif verdict.score_risque >= 25:
         recs = [
             "Alerter le bailleur sur les anomalies detectees.",
             "Verification humaine rapide recommandee avant signature.",
@@ -780,14 +780,14 @@ def afficher_interface_expert() -> None:
 
         st.markdown("#### Recommandations")
 
-        if verdict.score_risque >= 80:
+        if verdict.score_risque >= 65:
             recs = [
                 "🔴 **Suspendre la décision** — demander l'original du document au candidat",
                 "🔴 **Vérification humaine complémentaire** (contact employeur, etc.)",
                 "🔴 **La décision finale appartient au bailleur** (aucune décision automatisée)",
             ]
             st.error("Ce document présente des signaux d'alerte techniques importants")
-        elif verdict.score_risque >= 50:
+        elif verdict.score_risque >= 25:
             recs = [
                 "🟠 **Alerter le bailleur** sur les anomalies détectées",
                 "🟠 **Vérification humaine rapide** recommandée avant signature",
