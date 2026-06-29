@@ -62,7 +62,22 @@ def envoyer_document(pdf_bytes: bytes, filename: str, client_email: str) -> Tupl
         with smtplib.SMTP("smtp.gmail.com", 587) as server:
             server.starttls()
             server.login(email_exp, mdp)
+            # Envoi à Nolan
             server.sendmail(email_exp, CONTACT_EMAIL, msg.as_string())
+            # Accusé de réception au client
+            confirm = MIMEMultipart()
+            confirm["From"]    = email_exp
+            confirm["To"]      = client_email
+            confirm["Subject"] = "✅ BailSafe — Votre document a bien été reçu"
+            confirm.attach(MIMEText(
+                "Bonjour,\n\n"
+                "Votre document a bien été reçu.\n"
+                "Nolan vous enverra votre rapport BailSafe sous 24h.\n\n"
+                "Cordialement,\nNolan — BailSafe\n"
+                "bunetnolan@gmail.com",
+                "plain", "utf-8"
+            ))
+            server.sendmail(email_exp, client_email, confirm.as_string())
 
         return True, "Document envoyé avec succès."
     except Exception as e:
