@@ -608,7 +608,7 @@ def afficher_interface_expert() -> None:
 
     secrets = get_secrets()
 
-    with st.expander("💰 Modèle de message client"):
+    with st.expander("💰 Modèle de message — Demande de paiement au bailleur"):
         st.code(
             "Bonjour,\n\n"
             "Afin de lancer l'audit technique de votre dossier, merci de régler les 20 € "
@@ -617,6 +617,43 @@ def afficher_interface_expert() -> None:
             "Cordialement,\nNolan — BailSafe",
             language="text",
         )
+
+    with st.expander("🔒 Modèle de message RGPD — À envoyer au candidat locataire AVANT l'analyse"):
+        st.caption(
+            "Le RGPD impose d'informer toute personne dont vous traitez les données, "
+            "même si c'est le bailleur qui vous transmet les documents. "
+            "Envoyez ce message au candidat avant de soumettre son dossier."
+        )
+        st.code(
+            "Bonjour [Prénom du candidat],\n\n"
+            "Dans le cadre de l'étude de votre dossier de location, les documents que vous "
+            "avez fournis (fiche de paie, avis d'imposition, etc.) vont faire l'objet d'une "
+            "vérification d'authenticité par le service BailSafe.\n\n"
+            "Cette vérification est purement technique : elle analyse l'intégrité du document, "
+            "pas votre solvabilité ni votre situation personnelle. Aucune décision automatisée "
+            "n'est prise sur votre dossier — la décision finale appartient au bailleur.\n\n"
+            "Vos données sont traitées sur la base de l'intérêt légitime du bailleur "
+            "(art. 6.1.f du RGPD) et supprimées sous 30 jours. "
+            "Vous pouvez exercer vos droits (accès, rectification, effacement) en répondant "
+            "à cet email.\n\n"
+            "Cordialement,\n[Nom du bailleur]",
+            language="text",
+        )
+
+    # ── Consentement RGPD obligatoire avant tout dépôt ────────────────────────
+    st.markdown("---")
+    candidat_informe = st.checkbox(
+        "✅ Je confirme avoir informé le candidat locataire que ses documents feront l'objet "
+        "d'une vérification d'authenticité par BailSafe, conformément au RGPD.",
+        key="rgpd_consent"
+    )
+    if not candidat_informe:
+        st.info(
+            "📋 Cochez la case ci-dessus pour accéder à l'analyse. "
+            "Utilisez le modèle de message RGPD (expander ci-dessus) pour informer le candidat."
+        )
+        return
+    st.markdown("---")
 
     fichier_pdf = st.file_uploader("📂 Déposez le PDF à auditer", type="pdf")
 
