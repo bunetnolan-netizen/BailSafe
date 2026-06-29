@@ -1,16 +1,12 @@
 from __future__ import annotations
 
 import hashlib
-import imaplib
 import os
 import re
 import logging
-import socket
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
-from email.header import decode_header as _decode_header
-import email as _email_lib
-from typing import Optional, Tuple, List
+from typing import Optional, Tuple
 import smtplib
 from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
@@ -23,7 +19,13 @@ import streamlit as st
 try:
     import pdfplumber
 except ImportError:
-    st.error("❌ pdfplumber non installé. Lance : pip install -r requirements.txt")
+    st.error("❌ pdfplumber not installed. Run: pip install -r requirements_merged.txt")
+    st.stop()
+
+try:
+    from fpdf import FPDF
+except ImportError:
+    st.error("❌ fpdf2 not installed. Run: pip install -r requirements_merged.txt")
     st.stop()
 
 try:
@@ -31,10 +33,10 @@ try:
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
     from reportlab.lib.units import mm
     from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-    from reportlab.lib.enums import TA_CENTER, TA_LEFT
+    from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
     from reportlab.lib import colors
 except ImportError:
-    st.error("❌ reportlab non installé. Lance : pip install -r requirements.txt")
+    st.error("❌ reportlab not installed. Run: pip install -r requirements_merged.txt")
     st.stop()
 
 # Configuration logging
@@ -52,7 +54,7 @@ class AppSecrets:
 class PDFAnalysis:
     texte: str
     metadata: dict
-    raw_bytes: bytes = b""   # conservé pour l'analyse pikepdf
+    pdf_bytes: bytes = field(default_factory=bytes)  # FIX: stocker les bytes bruts pour SHA-256 réel
     error: Optional[str] = None
 
 
@@ -70,7 +72,8 @@ class MathResult:
 @dataclass
 class ForensicResult:
     hash_sha256: str
-    xref_anormal: bool
+    xref_anormal: bool           # FIX: maintenant calculé réellement
+    xref_count: int              # FIX: nombre de sections xref détectées
     fraude_meta: bool
     logiciels_detectes: list
     javascript_suspect: bool
@@ -84,17 +87,26 @@ class Verdict:
     score_risque: int
     statut: str
     date_analyse: str
-    nom_fichier: str = ""   # nom du PDF analysé — affiché dans le rapport
 
 
 # ============== LOGIQUE MÉTIER ==============
 
+def detect_xref_count(pdf_bytes: bytes) -> int:
+    """
+    FIX: Détecte le nombre de sections xref dans le PDF.
+
+    Chaque révision d'un PDF se termine par 'startxref' + offset + '%%EOF'.
+    Plus d'une occurrence = PDF modifié par incréments (remanié après émission).
+    Un document simple (fiche de paie originale) n'a normalement qu'un seul 'startxref'.
+    """
+    count = pdf_bytes.count(b"startxref")
+    return max(count, 0)
+
+
 def extract_pdf_content(fichier_pdf) -> PDFAnalysis:
-    """Extrait texte, métadonnées et hash du PDF avec pdfplumber."""
+    """Extrait texte, métadonnées et bytes bruts du PDF avec pdfplumber."""
     try:
         pdf_bytes = fichier_pdf.read()
-
-        hash_sha256 = hashlib.sha256(pdf_bytes).hexdigest()
 
         texte = ""
         metadata_dict = {}
@@ -102,19 +114,29 @@ def extract_pdf_content(fichier_pdf) -> PDFAnalysis:
         with pdfplumber.open(BytesIO(pdf_bytes)) as pdf:
             if pdf.metadata:
                 metadata_dict = {
-                    "Auteur":        str(pdf.metadata.get("Author",       "N/A"))[:50],
-                    "Créateur":      str(pdf.metadata.get("Creator",      "N/A"))[:50],
-                    "Producteur":    str(pdf.metadata.get("Producer",     "N/A"))[:50],
+                    "Auteur": str(pdf.metadata.get("Author", "N/A"))[:50],
+                    "Créateur": str(pdf.metadata.get("Creator", "N/A"))[:50],
+                    "Producteur": str(pdf.metadata.get("Producer", "N/A"))[:50],
                     "Date création": str(pdf.metadata.get("CreationDate", "N/A"))[:50],
-                    "Date modif":    str(pdf.metadata.get("ModDate",      "N/A"))[:50],
+                    "Date modif": str(pdf.metadata.get("ModDate", "N/A"))[:50],
                 }
             for page in pdf.pages:
                 texte += page.extract_text() or ""
 
-        return PDFAnalysis(texte=texte, metadata=metadata_dict, raw_bytes=pdf_bytes, error=None)
+        return PDFAnalysis(
+            texte=texte,
+            metadata=metadata_dict,
+            pdf_bytes=pdf_bytes,  # FIX: on stocke les bytes bruts
+            error=None
+        )
     except Exception as e:
         logger.error(f"Erreur extraction PDF: {str(e)}")
-        return PDFAnalysis(texte="", metadata={}, raw_bytes=b"", error=f"Lecture partielle : {str(e)[:50]}")
+        return PDFAnalysis(
+            texte="",
+            metadata={},
+            pdf_bytes=b"",
+            error=f"Lecture partielle : {str(e)[:50]}"
+        )
 
 
 def construire_math_result(texte: str) -> Tuple[float, float]:
@@ -163,142 +185,83 @@ def analyser_math(texte: str, net_mensuel: float, nb_mois: int, cumul_saisi: flo
     )
 
 
-def analyser_structure_pikepdf(pdf_bytes: bytes) -> dict:
-    """
-    Analyse la structure interne du PDF avec pikepdf.
-
-    Détecte deux signaux forensiques forts :
-    - /Prev dans le trailer = le PDF a été modifié APRÈS sa création.
-      Un vrai bulletin généré par logiciel RH ne contient jamais de /Prev.
-    - JavaScript dans la structure réelle du PDF (plus fiable que la recherche texte).
-
-    Retourne un dict avec les clés :
-      xref_multiple (bool), javascript_structure (bool), pdf_malformed (bool), erreur (str|None)
-    """
-    resultat = {
-        "xref_multiple":        False,
-        "javascript_structure": False,
-        "fichiers_incorpores":  False,
-        "pdf_malformed":        False,
-        "erreur":               None,
-    }
-    if not pdf_bytes:
-        return resultat
-    try:
-        import pikepdf
-        with pikepdf.open(BytesIO(pdf_bytes), suppress_warnings=True) as pdf:
-
-            # 1. Mise à jour incrémentale (/Prev dans le trailer)
-            if pdf.trailer.get("/Prev") is not None:
-                resultat["xref_multiple"] = True
-
-            root = pdf.trailer.get("/Root")
-            if root is not None:
-                # 2. JavaScript dans la structure réelle du PDF
-                if "/JavaScript" in root or "/JS" in root:
-                    resultat["javascript_structure"] = True
-                names = root.get("/Names")
-                if names is not None and "/JavaScript" in names:
-                    resultat["javascript_structure"] = True
-
-                # 3. Fichiers incorporés (EmbeddedFiles dans l'arbre des noms)
-                if names is not None and "/EmbeddedFiles" in names:
-                    resultat["fichiers_incorpores"] = True
-
-            # 4. Vérification objet par objet pour /EmbeddedFile
-            if not resultat["fichiers_incorpores"]:
-                for obj in pdf.objects:
-                    try:
-                        if hasattr(obj, "get") and obj.get("/Type") == "/Filespec":
-                            resultat["fichiers_incorpores"] = True
-                            break
-                    except Exception:
-                        continue
-
-    except Exception as e:
-        resultat["pdf_malformed"] = True
-        resultat["erreur"] = str(e)[:100]
-
-    return resultat
-
-
 def analyser_forensic(analysis: PDFAnalysis) -> ForensicResult:
-    """Analyse forensique complète : métadonnées + structure pikepdf."""
-    texte    = analysis.texte.lower()
+    """
+    FIX: Analyse forensique du PDF sur les bytes bruts.
+    - SHA-256 calculé sur les bytes réels du fichier (pas sur les métadonnées).
+    - xref_anormal calculé réellement (pas hardcodé à False).
+    """
+    texte = analysis.texte.lower()
     metadata = analysis.metadata
+    pdf_bytes = analysis.pdf_bytes
 
-    # ── Logiciels d'édition dans les métadonnées ──────────────────────────────
-    OUTILS_SUSPECTS = ["indesign", "photoshop", "gimp", "canva", "affinity", "inkscape"]
-    LOGICIELS_RH_LEGITIMES = [
-        "adp", "sage", "cegid", "silae", "quadratus", "hr access",
-        "decidium", "payfit", "lucca", "nibelis", "cegedim",
-    ]
+    # FIX 1 : SHA-256 sur les bytes réels du fichier
+    if pdf_bytes:
+        hash_sha256 = hashlib.sha256(pdf_bytes).hexdigest()
+    else:
+        hash_sha256 = "N/A — fichier non disponible"
+
+    # FIX 2 : Détection réelle des sections xref
+    xref_count = detect_xref_count(pdf_bytes) if pdf_bytes else 0
+    # Un PDF non remanié a 1 section xref. >1 = modifications incrémentales détectées.
+    xref_anormal = xref_count > 1
+
+    # Outils d'édition détectés dans les métadonnées
+    outils_suspects = ["adobe photoshop", "photoshop", "gimp", "canva", "affinity", "inkscape", "paint"]
     logiciels = []
     for key in ["Créateur", "Producteur"]:
         creator = metadata.get(key, "").lower()
-        if not creator:
-            continue
-        if any(rh in creator for rh in LOGICIELS_RH_LEGITIMES):
-            continue
-        for outil in OUTILS_SUSPECTS:
-            if outil in creator:
-                logiciels.append(outil.capitalize())
+        if creator and creator != "n/a":
+            for outil in outils_suspects:
+                if outil in creator:
+                    logiciels.append(outil.title())
 
-    # ── Fichiers incorporés — détectés via pikepdf (voir analyser_structure_pikepdf) ──
+    # JavaScript embarqué (signe d'un PDF actif/modifié)
+    javascript = b"/JavaScript" in pdf_bytes or b"/JS " in pdf_bytes
 
-    # ── Polices suspectes ──────────────────────────────────────────────────────
+    # Fichiers incorporés suspects
+    fichiers_inc = b"/EmbeddedFile" in pdf_bytes or b"/EmbeddedFiles" in pdf_bytes
+
+    # Polices suspectes dans le texte extrait
     fonts_sus = []
     if "wingdings" in texte or "symbol" in texte:
         fonts_sus.append("Wingdings/Symbol")
 
-    # ── Analyse structure pikepdf ──────────────────────────────────────────────
-    struct = analyser_structure_pikepdf(analysis.raw_bytes)
-    xref_anormal      = struct["xref_multiple"]
-    javascript_reel   = struct["javascript_structure"]
-    fichiers_inc      = struct["fichiers_incorpores"]   # Fix #2 — détection réelle via pikepdf
-    pdf_malformed     = struct["pdf_malformed"]
-
-    # ── Score forensique ───────────────────────────────────────────────────────
-    # Chaque signal est pondéré selon son fiabilité forensique.
+    # Score forensique pondéré
     score = 0
-    if xref_anormal:      score += 35   # fort : PDF modifié après création
-    if javascript_reel:   score += 25   # fort : JS dans la structure réelle
-    if logiciels:         score += 25   # moyen-fort : outil graphique détecté
-    if fichiers_inc:      score += 20   # moyen : fichier caché dans le PDF
-    if pdf_malformed:     score += 15   # moyen : structure corrompue/bricolée
-    if fonts_sus:         score += 10   # faible : police inhabituelle
-
-    hash_val = hashlib.sha256(analysis.raw_bytes or str(metadata).encode()).hexdigest()
+    if logiciels:
+        score += 30       # Outil graphique dans les métadonnées = signal fort
+    if xref_anormal:
+        score += 25       # PDF remanié (sections xref multiples)
+    if javascript:
+        score += 25       # JavaScript dans un PDF de fiche de paie = très suspect
+    if fichiers_inc:
+        score += 20       # Fichiers incorporés cachés
+    if fonts_sus:
+        score += 10
 
     return ForensicResult(
-        hash_sha256=hash_val,
+        hash_sha256=hash_sha256,
         xref_anormal=xref_anormal,
+        xref_count=xref_count,
         fraude_meta=len(logiciels) > 0,
         logiciels_detectes=logiciels,
-        javascript_suspect=javascript_reel,
+        javascript_suspect=javascript,
         fichiers_incorpores=fichiers_inc,
         fonts_suspectes=fonts_sus,
         score_risque_forensic=min(score, 95)
     )
 
 
-def calculer_verdict(math: MathResult, forensic: ForensicResult, nom_fichier: str = "") -> Verdict:
-    """Calcule verdict global.
-
-    Si le PDF est un scan (texte illisible), on ne pénalise pas math à 0 :
-    on applique un score de 30 pour signaler l'incertitude liée au scan.
-    """
-    if math.est_scan:
-        score_math = 30  # incertitude — on ne peut pas vérifier les chiffres
-    else:
-        score_math = 50 if math.fraude_math else 0
-
+def calculer_verdict(math: MathResult, forensic: ForensicResult) -> Verdict:
+    """Calcule verdict global."""
+    score_math = 50 if math.fraude_math else 0
     score_forensic = forensic.score_risque_forensic
     score_global = int((score_math + score_forensic) / 2)
 
-    if score_global >= 70:
+    if score_global >= 80:
         statut = "🔴 ANOMALIES MAJEURES sur le document — Vérification humaine obligatoire"
-    elif score_global >= 40:
+    elif score_global >= 50:
         statut = "🟠 ANOMALIES MODÉRÉES sur le document — Vérification humaine recommandée"
     else:
         statut = "🟢 AUCUNE ANOMALIE TECHNIQUE détectée sur le document"
@@ -306,8 +269,7 @@ def calculer_verdict(math: MathResult, forensic: ForensicResult, nom_fichier: st
     return Verdict(
         score_risque=score_global,
         statut=statut,
-        date_analyse=datetime.now().strftime("%d/%m/%Y à %H:%M"),
-        nom_fichier=nom_fichier,
+        date_analyse=datetime.now().strftime("%d/%m/%Y à %H:%M")
     )
 
 
@@ -327,6 +289,7 @@ def build_report_pdf(verdict: Verdict, forensic: ForensicResult) -> bytes:
         alignment=TA_CENTER,
         fontName='Helvetica-Bold'
     )
+
     subtitle_style = ParagraphStyle(
         'CustomSubtitle',
         parent=styles['Normal'],
@@ -336,6 +299,7 @@ def build_report_pdf(verdict: Verdict, forensic: ForensicResult) -> bytes:
         spaceAfter=20,
         fontName='Helvetica-Bold'
     )
+
     header_style = ParagraphStyle(
         'Header',
         parent=styles['Heading2'],
@@ -347,6 +311,7 @@ def build_report_pdf(verdict: Verdict, forensic: ForensicResult) -> bytes:
         borderWidth=2,
         borderPadding=10
     )
+
     normal_style = ParagraphStyle(
         'Normal',
         parent=styles['Normal'],
@@ -358,30 +323,32 @@ def build_report_pdf(verdict: Verdict, forensic: ForensicResult) -> bytes:
 
     story = []
 
-    story.append(Paragraph("🛡️ BAILSAFE", title_style))
+    story.append(Paragraph("BAILSAFE", title_style))
     story.append(Paragraph("Rapport d'Audit Documentaire Anti-Fraude", subtitle_style))
     story.append(Spacer(1, 12))
 
     info_data = [
-        ["📅 Date d'analyse",  verdict.date_analyse],
-        ["📄 Fichier analysé", verdict.nom_fichier or "—"],
-        ["🔐 Confidentialité", "Ce rapport est destiné au bailleur uniquement"],
+        ["Date d'analyse", verdict.date_analyse],
+        ["Confidentialite", "Ce rapport est destine au bailleur uniquement"],
+        # FIX: SHA-256 réel affiché dans le rapport
+        ["Empreinte SHA-256", forensic.hash_sha256[:32] + "..." if len(forensic.hash_sha256) > 32 else forensic.hash_sha256],
     ]
     info_table = Table(info_data, colWidths=[80*mm, 80*mm])
     info_table.setStyle(TableStyle([
-        ('BACKGROUND',  (0, 0), (1, -1), colors.HexColor('#f9fafb')),
-        ('TEXTCOLOR',   (0, 0), (1, -1), colors.HexColor('#475569')),
-        ('ALIGN',       (0, 0), (-1, -1), 'LEFT'),
-        ('FONTNAME',    (0, 0), (0, -1), 'Helvetica-Bold'),
-        ('FONTSIZE',    (0, 0), (-1, -1), 10),
+        ('BACKGROUND', (0, 0), (1, -1), colors.HexColor('#f9fafb')),
+        ('TEXTCOLOR', (0, 0), (1, -1), colors.HexColor('#475569')),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-        ('TOPPADDING',  (0, 0), (-1, -1), 8),
-        ('GRID',        (0, 0), (-1, -1), 1, colors.HexColor('#e2e8f0')),
+        ('TOPPADDING', (0, 0), (-1, -1), 8),
+        ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#e2e8f0')),
     ]))
     story.append(info_table)
     story.append(Spacer(1, 20))
 
     story.append(Paragraph("VERDICT GLOBAL", header_style))
+
     verdict_data = [
         ["Statut", verdict.statut],
         ["Indice d'anomalie documentaire", f"{verdict.score_risque}/100"],
@@ -389,87 +356,94 @@ def build_report_pdf(verdict: Verdict, forensic: ForensicResult) -> bytes:
     verdict_table = Table(verdict_data, colWidths=[50*mm, 110*mm])
     verdict_table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#f1f5f9')),
-        ('BACKGROUND', (1, 0), (1, -1),
-         colors.HexColor('#fef2f2') if verdict.score_risque >= 70
-         else colors.HexColor('#fff7ed') if verdict.score_risque >= 40
-         else colors.HexColor('#f0fdf4')),
-        ('TEXTCOLOR',  (0, 0), (-1, -1), colors.HexColor('#1e293b')),
-        ('ALIGN',      (0, 0), (-1, -1), 'LEFT'),
-        ('FONTNAME',   (0, 0), (0, -1), 'Helvetica-Bold'),
-        ('FONTSIZE',   (0, 0), (-1, -1), 10),
+        ('BACKGROUND', (1, 0), (1, -1), colors.HexColor('#fef2f2') if verdict.score_risque >= 80 else colors.HexColor('#fff7ed')),
+        ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor('#1e293b')),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
         ('TOPPADDING', (0, 0), (-1, -1), 10),
-        ('GRID',       (0, 0), (-1, -1), 1, colors.HexColor('#e2e8f0')),
+        ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#e2e8f0')),
         ('LEFTPADDING', (0, 0), (-1, -1), 12),
     ]))
     story.append(verdict_table)
     story.append(Spacer(1, 16))
 
     story.append(Paragraph("ANALYSE FORENSIQUE", header_style))
+
+    # FIX: xref_count réel dans le rapport
+    xref_label = f"Normal (1 section)" if forensic.xref_count <= 1 else f"ANORMAL ({forensic.xref_count} sections — PDF remanié)"
+
     forensic_data = [
-        ["Intégrité du fichier",         f"SHA-256: {forensic.hash_sha256[:16]}..."],
-        ["Outils d'édition détectés",    ", ".join(forensic.logiciels_detectes) or "Aucun"],
-        ["JavaScript embarqué",          "🔴 Détecté" if forensic.javascript_suspect else "🟢 Non détecté"],
-        ["Fichiers incorporés",          "🔴 Oui" if forensic.fichiers_incorpores else "🟢 Non"],
-        ["Polices suspectes",            ", ".join(forensic.fonts_suspectes) or "Aucune"],
-        ["Score forensique",             f"{forensic.score_risque_forensic}/100"],
+        ["Integrite SHA-256", f"{forensic.hash_sha256[:20]}... (calcule sur le fichier)"],
+        ["Sections xref", xref_label],
+        ["Outils d'edition detectes", ", ".join(forensic.logiciels_detectes) or "Aucun"],
+        ["JavaScript embarque", "Detecte" if forensic.javascript_suspect else "Non detecte"],
+        ["Fichiers incorpores", "Oui" if forensic.fichiers_incorpores else "Non"],
+        ["Polices suspectes", ", ".join(forensic.fonts_suspectes) or "Aucune"],
+        ["Score forensique", f"{forensic.score_risque_forensic}/100"],
     ]
+
     forensic_table = Table(forensic_data, colWidths=[50*mm, 110*mm])
     forensic_table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#f1f5f9')),
         ('BACKGROUND', (1, 0), (1, -1), colors.HexColor('#f9fafb')),
-        ('TEXTCOLOR',  (0, 0), (-1, -1), colors.HexColor('#1e293b')),
-        ('ALIGN',      (0, 0), (-1, -1), 'LEFT'),
-        ('FONTNAME',   (0, 0), (0, -1), 'Helvetica-Bold'),
-        ('FONTSIZE',   (0, 0), (-1, -1), 9),
+        ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor('#1e293b')),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
         ('TOPPADDING', (0, 0), (-1, -1), 10),
-        ('GRID',       (0, 0), (-1, -1), 1, colors.HexColor('#e2e8f0')),
+        ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#e2e8f0')),
         ('LEFTPADDING', (0, 0), (-1, -1), 12),
     ]))
     story.append(forensic_table)
     story.append(Spacer(1, 16))
 
     story.append(Paragraph("RECOMMANDATIONS", header_style))
-    if verdict.score_risque >= 70:
+
+    if verdict.score_risque >= 80:
         recs = [
-            "🔴 Suspendre la décision et demander l'original du document au candidat.",
-            "🔴 Procéder à une vérification humaine complémentaire (contact employeur, etc.).",
-            "🔴 La décision finale d'accepter ou refuser le dossier appartient au bailleur.",
+            "Suspendre la decision et demander l'original du document au candidat.",
+            "Proceder a une verification humaine complementaire (contact employeur, etc.).",
+            "La decision finale d'accepter ou refuser le dossier appartient au bailleur.",
         ]
-    elif verdict.score_risque >= 40:
+    elif verdict.score_risque >= 50:
         recs = [
-            "🟠 Alerter le bailleur sur les anomalies détectées.",
-            "🟠 Vérification humaine rapide recommandée avant signature.",
-            "🟠 Demander une explication écrite au candidat.",
+            "Alerter le bailleur sur les anomalies detectees.",
+            "Verification humaine rapide recommandee avant signature.",
+            "Demander une explication ecrite au candidat.",
         ]
     else:
         recs = [
-            "🟢 Dossier conforme — peut procéder normalement.",
-            "🟢 Ce rapport peut servir de justificatif de rigueur.",
+            "Dossier conforme — peut proceder normalement.",
+            "Ce rapport peut servir de justificatif de rigueur.",
         ]
+
     for rec in recs:
-        story.append(Paragraph(f"• {rec}", normal_style))
+        story.append(Paragraph(f"- {rec}", normal_style))
 
     story.append(Spacer(1, 20))
 
-    story.append(Paragraph("AVERTISSEMENT LÉGAL", header_style))
+    story.append(Paragraph("AVERTISSEMENT LEGAL", header_style))
     legal_text = (
-        "Ce rapport est une analyse technique automatisée fournie à titre consultatif. "
-        "Il porte sur l'intégrité du document, non sur la personne. Il ne constitue pas une "
-        "garantie juridique et ne vaut pas décision : la décision d'accepter ou de refuser un "
-        "dossier appartient exclusivement au bailleur (aucune décision automatisée au sens de "
-        "l'article 22 du RGPD). BailSafe ne peut être tenu responsable des décisions prises sur "
-        "la base de ce rapport. Une falsification suivie d'une impression puis d'un nouveau scan "
-        "peut échapper à l'analyse."
+        "Ce rapport est une analyse technique automatisee fournie a titre consultatif. "
+        "Il porte sur l'integrite numerique du document PDF, non sur la personne. "
+        "Il ne constitue pas une garantie juridique et ne vaut pas decision : "
+        "la decision d'accepter ou de refuser un dossier appartient exclusivement au bailleur "
+        "(aucune decision automatisee au sens de l'article 22 du RGPD). "
+        "LIMITE IMPORTANTE : un document imprime puis re-scanne apres modification echappe "
+        "a cette analyse forensique — BailSafe ne peut garantir la detection de ce type de falsification. "
+        "BailSafe ne peut etre tenu responsable des decisions prises sur la base de ce rapport."
     )
     story.append(Paragraph(legal_text, normal_style))
+
     story.append(Spacer(1, 20))
 
     footer_text = (
-        "Rapport généré par BailSafe — Audit Anti-Fraude Locative<br/>"
+        "Rapport genere par BailSafe — Audit Anti-Fraude Locative<br/>"
         "bunetnolan@gmail.com · Sainte-Rose, Guadeloupe<br/>"
-        "<font size=8>Données supprimées automatiquement sous 30 jours</font>"
+        "<font size=8>Donnees supprimees automatiquement sous 30 jours</font>"
     )
     story.append(Paragraph(footer_text, ParagraphStyle(
         'Footer',
@@ -485,36 +459,26 @@ def build_report_pdf(verdict: Verdict, forensic: ForensicResult) -> bytes:
     return buffer.getvalue()
 
 
-def get_report_filename(statut: str, email_client: str = "") -> str:
-    """Génère le nom du fichier rapport selon le verdict et l'email du client.
-
-    Exemples :
-      BailSafe_ALERTE_dupont@gmail.com_20260629_143012.pdf
-      BailSafe_ATTENTION_martin@sfr.fr_20260629_143012.pdf
-      BailSafe_CONFORME_leroy@orange.fr_20260629_143012.pdf
-    """
+def get_report_filename(statut: str) -> str:
+    """Génère nom fichier selon le verdict."""
     date = datetime.now().strftime("%Y%m%d_%H%M%S")
-    # Nettoie l'email pour un nom de fichier valide (retire les caractères interdits sauf @ et .)
-    email_clean = re.sub(r'[<>:"/\\|?*]', '_', email_client.strip()) if email_client else "client"
-
     if "MAJEURES" in statut:
-        niveau = "ALERTE"
-    elif "MODÉRÉES" in statut:
-        niveau = "ATTENTION"
+        return f"BailSafe_ALERTE_{date}.pdf"
+    elif "MODEREES" in statut:
+        return f"BailSafe_ATTENTION_{date}.pdf"
     else:
-        niveau = "CONFORME"
-
-    return f"BailSafe_{niveau}_{email_clean}_{date}.pdf"
+        return f"BailSafe_CONFORME_{date}.pdf"
 
 
 def envoyer_rapport(secrets: AppSecrets, email_dest: str, pdf_bytes: bytes, filename: str) -> Tuple[bool, str]:
     """Envoie le rapport par email."""
     if not secrets.email_expediteur or not secrets.mot_de_passe_email:
         return False, "❌ Secrets email non configurés."
+
     try:
         msg = MIMEMultipart()
-        msg['From']    = secrets.email_expediteur
-        msg['To']      = email_dest
+        msg['From'] = secrets.email_expediteur
+        msg['To'] = email_dest
         msg['Subject'] = "🛡️ Votre rapport BailSafe — Audit anti-fraude"
 
         body = (
@@ -523,21 +487,23 @@ def envoyer_rapport(secrets: AppSecrets, email_dest: str, pdf_bytes: bytes, file
             "Ce rapport est confidentiel et destiné au bailleur uniquement.\n\n"
             "Cordialement,\nNolan — BailSafe"
         )
+
         msg.attach(MIMEText(body, 'plain'))
 
         part = MIMEBase('application', 'octet-stream')
         part.set_payload(pdf_bytes)
         encoders.encode_base64(part)
-        part.add_header('Content-Disposition', f'attachment; filename="{filename}"')
+        part.add_header('Content-Disposition', f'attachment; filename={filename}')
         msg.attach(part)
 
-        with smtplib.SMTP('smtp.gmail.com', 587, timeout=15) as server:
+        with smtplib.SMTP('smtp.gmail.com', 587) as server:
             server.starttls()
             server.login(secrets.email_expediteur, secrets.mot_de_passe_email)
             server.send_message(msg)
 
         logger.info(f"Email envoyé à {email_dest}")
         return True, f"✅ Rapport envoyé à {email_dest}"
+
     except Exception as e:
         logger.error(f"Erreur envoi email: {str(e)}")
         return False, f"❌ Erreur envoi: {str(e)[:60]}"
@@ -545,55 +511,37 @@ def envoyer_rapport(secrets: AppSecrets, email_dest: str, pdf_bytes: bytes, file
 
 def is_valid_email(email: str) -> bool:
     """Valide format email."""
-    return bool(re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', email))
+    pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    return re.match(pattern, email) is not None
 
 
 def get_secrets() -> AppSecrets:
-    """Charge les secrets : variables d'environnement (Render/Cloud) puis st.secrets (local)."""
+    """Charge les secrets : variables d'environnement (Render) puis st.secrets (local)."""
     email = os.getenv("EMAIL_EXPEDITEUR")
-    mdp   = os.getenv("MOT_DE_PASSE_EMAIL")
+    mdp = os.getenv("MOT_DE_PASSE_EMAIL")
     if not email or not mdp:
         try:
             email = st.secrets["EMAIL_EXPEDITEUR"]
-            mdp   = st.secrets["MOT_DE_PASSE_EMAIL"]
+            mdp = st.secrets["MOT_DE_PASSE_EMAIL"]
         except Exception:
-            st.warning("⚠️ Secrets non configurés — mode démo.")
+            st.warning("⚠️ Secrets email non configurés — envoi désactivé.")
             return AppSecrets(email_expediteur="", mot_de_passe_email="")
     return AppSecrets(email_expediteur=email, mot_de_passe_email=mdp)
 
 
 def check_password() -> bool:
-    """Protège l'accès à l'interface expert.
-
-    Lit d'abord la variable d'environnement EXPERT_PASSWORD (Render/Cloud),
-    puis st.secrets["EXPERT_PASSWORD"] (local secrets.toml).
-    Si aucun mot de passe n'est défini nulle part → accès bloqué par défaut
-    pour éviter une exposition accidentelle.
-    """
-    # 1) Variable d'environnement (Streamlit Cloud / Render)
+    """Porte d'accès expert — EXPERT_PASSWORD doit être défini sur le serveur."""
     expected = os.getenv("EXPERT_PASSWORD")
-
-    # 2) Fallback sur secrets.toml si la var env n'est pas définie
     if not expected:
-        try:
-            expected = st.secrets["EXPERT_PASSWORD"]
-        except Exception:
-            expected = None
-
-    # 3) Aucun mot de passe configuré → accès bloqué (sécurité par défaut)
-    if not expected:
+        # FIX: En l'absence de mot de passe configuré, bloquer l'accès (ne pas laisser ouvert)
         st.error(
-            "🔒 Accès refusé — `EXPERT_PASSWORD` non configuré.\n\n"
-            "Ajoute-le dans `.streamlit/secrets.toml` ou dans les variables d'environnement."
+            "🔒 Accès refusé — la variable d'environnement EXPERT_PASSWORD n'est pas définie. "
+            "Configurez-la sur votre hébergeur (Render : Settings → Environment Variables)."
         )
         st.stop()
         return False
-
-    # 4) Session déjà authentifiée
     if st.session_state.get("auth_ok"):
         return True
-
-    # 5) Formulaire de connexion
     pwd = st.text_input("🔒 Mot de passe d'accès expert", type="password")
     if pwd:
         if pwd == expected:
@@ -601,115 +549,6 @@ def check_password() -> bool:
             return True
         st.error("Mot de passe incorrect.")
     return False
-
-
-# ============== BOÎTE DE RÉCEPTION GMAIL (IMAP) ==============
-
-_EMAIL_RE = re.compile(r'[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}')
-_IMAP_TIMEOUT = 15  # secondes
-
-
-def _extraire_email_depuis_sujet(sujet: str) -> str:
-    """Extrait le premier email valide trouvé dans le sujet.
-    Robuste face aux variantes d'encodage du séparateur '—'."""
-    match = _EMAIL_RE.search(sujet)
-    return match.group(0) if match else ""
-
-
-def lire_documents_en_attente(secrets: AppSecrets) -> Tuple[List[dict], str]:
-    """
-    Lit les emails non lus 'Document BailSafe' dans Gmail via IMAP SSL.
-
-    Retourne (documents, erreur) :
-      - documents : liste de dicts {uid, sujet, client_email, filename, pdf_bytes, date}
-      - erreur    : message d'erreur lisible ou "" si tout va bien
-    """
-    if not secrets.email_expediteur or not secrets.mot_de_passe_email:
-        return [], "Secrets email non configurés."
-    try:
-        socket.setdefaulttimeout(_IMAP_TIMEOUT)
-        mail = imaplib.IMAP4_SSL("imap.gmail.com", 993)
-        mail.login(secrets.email_expediteur, secrets.mot_de_passe_email)
-        mail.select("INBOX")
-
-        _, uids = mail.search(None, '(UNSEEN SUBJECT "Document BailSafe")')
-
-        documents = []
-        for uid in uids[0].split():
-            try:
-                _, msg_data = mail.fetch(uid, "(RFC822)")
-                raw = msg_data[0][1]
-                msg = _email_lib.message_from_bytes(raw)
-
-                # Décoder le sujet (robuste multi-encodage)
-                sujet_brut = msg.get("Subject", "")
-                sujet_parts = _decode_header(sujet_brut)
-                sujet = ""
-                for part, enc in sujet_parts:
-                    if isinstance(part, bytes):
-                        sujet += part.decode(enc or "utf-8", errors="replace")
-                    else:
-                        sujet += str(part)
-
-                date = msg.get("Date", "Date inconnue")
-
-                # Extraction email par regex — robuste face aux variantes de "—"
-                client_email = _extraire_email_depuis_sujet(sujet)
-
-                # Pièce jointe PDF
-                pdf_bytes = None
-                filename = "document.pdf"
-                for part in msg.walk():
-                    if part.get_content_type() == "application/pdf":
-                        filename = part.get_filename() or "document.pdf"
-                        pdf_bytes = part.get_payload(decode=True)
-                        break
-
-                if pdf_bytes:
-                    documents.append({
-                        "uid":          uid,
-                        "sujet":        sujet,
-                        "client_email": client_email,
-                        "filename":     filename,
-                        "pdf_bytes":    pdf_bytes,
-                        "date":         date,
-                    })
-            except Exception as e:
-                logger.warning(f"Erreur lecture email uid {uid}: {e}")
-                continue
-
-        mail.close()
-        mail.logout()
-        return documents, ""
-
-    except imaplib.IMAP4.error as e:
-        msg = str(e)
-        if "AUTHENTICATIONFAILED" in msg.upper():
-            return [], "Identifiants Gmail incorrects. Vérifiez EMAIL_EXPEDITEUR et MOT_DE_PASSE_EMAIL."
-        return [], f"Erreur Gmail IMAP : {msg[:80]}"
-    except socket.timeout:
-        return [], "Délai de connexion dépassé. Vérifiez votre connexion internet."
-    except Exception as e:
-        err = str(e)
-        if "IMAP" in err.upper() or "disabled" in err.lower():
-            return [], (
-                "Accès IMAP désactivé dans Gmail. "
-                "Activez-le : Gmail → Paramètres → Transfert et POP/IMAP → Activer IMAP."
-            )
-        return [], f"Erreur connexion Gmail : {err[:80]}"
-
-
-def marquer_email_traite(secrets: AppSecrets, uid: bytes) -> None:
-    """Marque l'email comme lu dans Gmail (document traité)."""
-    try:
-        mail = imaplib.IMAP4_SSL("imap.gmail.com", 993)
-        mail.login(secrets.email_expediteur, secrets.mot_de_passe_email)
-        mail.select("INBOX")
-        mail.store(uid, "+FLAGS", "\\Seen")
-        mail.close()
-        mail.logout()
-    except Exception as e:
-        logger.warning(f"Impossible de marquer l'email comme lu : {e}")
 
 
 # ============== INTERFACE STREAMLIT ==============
@@ -733,12 +572,19 @@ def afficher_interface_expert() -> None:
         "Base légale : intérêt légitime du bailleur + exécution du contrat. "
         "Le rapport est un **avis technique consultatif** : aucune décision automatisée "
         "n'est prise sur les personnes (art. 22 RGPD), la décision finale revient au bailleur. "
-        "Pensez à informer le candidat que ses pièces font l'objet d'une vérification."
+        "**Pensez à informer le candidat que ses pièces font l'objet d'une vérification.**"
+    )
+
+    # FIX: Rappel de la limite principale
+    st.warning(
+        "⚠️ **Limite à communiquer au client** : un document imprimé puis re-scanné après modification "
+        "peut échapper à l'analyse forensique. BailSafe détecte les falsifications numériques directes, "
+        "pas les modifications réalisées via impression/scan."
     )
 
     secrets = get_secrets()
 
-    with st.expander("💰 Modèle de message — Demande de paiement au bailleur"):
+    with st.expander("💰 Modèle de message client"):
         st.code(
             "Bonjour,\n\n"
             "Afin de lancer l'audit technique de votre dossier, merci de régler les 20 € "
@@ -748,131 +594,17 @@ def afficher_interface_expert() -> None:
             language="text",
         )
 
-    with st.expander("🔒 Modèle de message RGPD — À envoyer au candidat locataire AVANT l'analyse"):
-        st.caption(
-            "Le RGPD impose d'informer toute personne dont vous traitez les données, "
-            "même si c'est le bailleur qui vous transmet les documents. "
-            "Envoyez ce message au candidat avant de soumettre son dossier."
-        )
-        st.code(
-            "Bonjour [Prénom du candidat],\n\n"
-            "Dans le cadre de l'étude de votre dossier de location, les documents que vous "
-            "avez fournis (fiche de paie, avis d'imposition, etc.) vont faire l'objet d'une "
-            "vérification d'authenticité par le service BailSafe.\n\n"
-            "Cette vérification est purement technique : elle analyse l'intégrité du document, "
-            "pas votre solvabilité ni votre situation personnelle. Aucune décision automatisée "
-            "n'est prise sur votre dossier — la décision finale appartient au bailleur.\n\n"
-            "Vos données sont traitées sur la base de l'intérêt légitime du bailleur "
-            "(art. 6.1.f du RGPD) et supprimées sous 30 jours. "
-            "Vous pouvez exercer vos droits (accès, rectification, effacement) en répondant "
-            "à cet email.\n\n"
-            "Cordialement,\n[Nom du bailleur]",
-            language="text",
-        )
+    fichier_pdf = st.file_uploader("📂 Déposez le PDF à auditer", type="pdf")
 
-    # ── Consentement RGPD obligatoire avant tout dépôt ────────────────────────
-    st.markdown("---")
-    candidat_informe = st.checkbox(
-        "✅ Je confirme avoir informé le candidat locataire que ses documents feront l'objet "
-        "d'une vérification d'authenticité par BailSafe, conformément au RGPD.",
-        key="rgpd_consent"
-    )
-    if not candidat_informe:
-        st.info(
-            "📋 Cochez la case ci-dessus pour accéder à l'analyse. "
-            "Utilisez le modèle de message RGPD (expander ci-dessus) pour informer le candidat."
-        )
+    if fichier_pdf is None:
+        st.info("📌 Déposez un fichier PDF pour démarrer l'analyse complète.")
         return
-    st.markdown("---")
 
-    # ── Boîte de réception Gmail ───────────────────────────────────────────────
-    st.markdown("### 📥 Documents en attente")
-
-    # Initialiser ou vider le cache si Nolan clique sur Actualiser
-    if "inbox_docs" not in st.session_state:
-        st.session_state.inbox_docs = None
-
-    if st.button("🔄 Actualiser", use_container_width=False):
-        with st.spinner("Connexion à Gmail…"):
-            docs, erreur = lire_documents_en_attente(secrets)
-            st.session_state.inbox_docs = docs
-            if erreur:
-                st.session_state.inbox_erreur = erreur
-            else:
-                st.session_state.pop("inbox_erreur", None)
-
-    if st.session_state.get("inbox_erreur"):
-        st.error(f"❌ {st.session_state.inbox_erreur}")
-
-    if st.session_state.inbox_docs is None:
-        st.info("Clique sur **Actualiser** pour charger les documents reçus par email.")
-    elif len(st.session_state.inbox_docs) == 0:
-        st.success("✅ Aucun document en attente.")
-    else:
-        st.markdown(f"**{len(st.session_state.inbox_docs)} document(s) non traité(s) :**")
-        for i, doc in enumerate(st.session_state.inbox_docs):
-            with st.container():
-                st.markdown(f"""
-<div style="background:#1e293b;border:1px solid #334155;border-radius:8px;
-            padding:14px 18px;margin-bottom:10px">
-    <div style="color:#f59e0b;font-size:12px;font-weight:700;margin-bottom:4px">
-        📄 {doc['filename']}
-    </div>
-    <div style="color:#e2e8f0;font-size:13px">📧 {doc['client_email']}</div>
-    <div style="color:#64748b;font-size:11px;margin-top:4px">{doc['date']}</div>
-</div>
-""", unsafe_allow_html=True)
-                paiement_ok = st.checkbox(
-                    "💳 Paiement PayPal vérifié",
-                    key=f"pay_{i}",
-                    help="Vérifiez dans votre tableau de bord PayPal avant d'analyser."
-                )
-                c1, c2 = st.columns([2, 1])
-                with c1:
-                    if st.button(
-                        "📂 Charger et analyser",
-                        key=f"load_{i}",
-                        use_container_width=True,
-                        disabled=not paiement_ok
-                    ):
-                        pseudo_file = BytesIO(doc["pdf_bytes"])
-                        pseudo_file.name = doc["filename"]
-                        with st.spinner("Analyse en cours…"):
-                            st.session_state["analysis"] = extract_pdf_content(pseudo_file)
-                            st.session_state["current_pdf_name"] = doc["filename"]
-                            st.session_state["inbox_client_email"] = doc["client_email"]
-                            st.session_state.pop("forensic_result", None)
-                            st.session_state.pop("math_result", None)
-                        st.success("✅ PDF chargé — analysez dans les onglets ci-dessous.")
-                    if not paiement_ok:
-                        st.caption("⚠️ Cochez la case paiement pour débloquer l'analyse.")
-                with c2:
-                    if st.button(f"✅ Traité", key=f"done_{i}", use_container_width=True):
-                        marquer_email_traite(secrets, doc["uid"])
-                        st.session_state.inbox_docs.pop(i)
-                        st.rerun()
-
-    st.markdown("---")
-    st.markdown("### 📂 Ou déposez un PDF manuellement")
-
-    fichier_pdf = st.file_uploader("Déposez le PDF à auditer", type="pdf")
-
-    # ── Cas 1 : fichier déposé manuellement ──────────────────────────────────
-    if fichier_pdf is not None:
-        if (
-            "current_pdf_name" not in st.session_state
-            or st.session_state["current_pdf_name"] != fichier_pdf.name
-        ):
-            with st.spinner("🔍 Extraction et analyse du document en cours…"):
-                st.session_state["analysis"] = extract_pdf_content(fichier_pdf)
-                st.session_state["current_pdf_name"] = fichier_pdf.name
-                st.session_state.pop("forensic_result", None)
-                st.session_state.pop("math_result", None)
-
-    # ── Cas 2 : rien chargé (ni inbox, ni upload) ─────────────────────────────
-    if "analysis" not in st.session_state:
-        st.info("📌 Déposez un fichier PDF ou chargez-en un depuis la boîte de réception.")
-        return
+    if "current_pdf_name" not in st.session_state or st.session_state["current_pdf_name"] != fichier_pdf.name:
+        with st.spinner("🔍 Extraction et analyse du document en cours…"):
+            st.session_state["analysis"] = extract_pdf_content(fichier_pdf)
+            st.session_state["current_pdf_name"] = fichier_pdf.name
+            st.session_state.pop("forensic_result", None)
 
     analysis = st.session_state["analysis"]
 
@@ -880,6 +612,7 @@ def afficher_interface_expert() -> None:
         st.warning(f"⚠️ Lecture partielle : {analysis.error}")
 
     if "forensic_result" not in st.session_state:
+        # FIX: analyser_forensic reçoit maintenant l'objet analysis complet (avec pdf_bytes)
         st.session_state["forensic_result"] = analyser_forensic(analysis)
 
     forensic = st.session_state["forensic_result"]
@@ -928,14 +661,14 @@ def afficher_interface_expert() -> None:
             m1, m2, m3 = st.columns(3)
             with m1:
                 st.metric("Cumul théorique", f"{math.calcul_theorique:.2f} €",
-                          help=f"{net_saisi}€ × {nb_mois} mois")
+                         help=f"{net_saisi}€ × {nb_mois} mois")
             with m2:
                 st.metric("Écart détecté", f"{math.ecart:.2f} €",
-                          delta=f"⚠️ {math.ecart:.2f} €" if math.fraude_math else "✅ OK",
-                          delta_color="inverse" if math.fraude_math else "off")
+                         delta=f"⚠️ {math.ecart:.2f} €" if math.fraude_math else "✅ OK",
+                         delta_color="inverse" if math.fraude_math else "off")
             with m3:
                 st.metric("Seuil d'alerte", f"{seuil:.2f} €",
-                          help="8% du cumul théorique, minimum 100€")
+                         help="8% du cumul théorique, minimum 100€")
 
             st.divider()
 
@@ -952,17 +685,21 @@ def afficher_interface_expert() -> None:
         with col_a:
             st.markdown("**Intégrité du fichier**")
             with st.expander("SHA-256 (cliquer pour voir le hash complet)"):
+                # FIX: hash réel du fichier
                 st.code(forensic.hash_sha256, language="text")
+                st.caption("Calculé sur les bytes bruts du fichier PDF uploadé.")
 
-            xref_status = "🔴 PDF modifié après création" if forensic.xref_anormal else "🟢 Créé une seule fois (normal)"
-            st.markdown(f"**Structure xref** : {xref_status}")
-            st.caption(
-                "Un bulletin de paie légitime est généré une seule fois par le logiciel RH. "
-                "Si le PDF contient plusieurs sections xref, il a été retouché après coup."
-            )
+            # FIX: xref_count réel affiché
+            if forensic.xref_anormal:
+                xref_label = f"🔴 Anormal ({forensic.xref_count} sections xref détectées)"
+            else:
+                xref_label = f"🟢 Normal ({forensic.xref_count} section xref)"
+            st.markdown(f"**Sections xref** : {xref_label}")
+            st.caption("Plusieurs sections xref = PDF remanié ou reconstruit après émission.")
 
         with col_b:
             st.markdown("**Signaux suspects détectés**")
+
             check_items = [
                 ("Outils d'édition graphique", forensic.fraude_meta,
                  ", ".join(forensic.logiciels_detectes) or "Aucun"),
@@ -971,6 +708,7 @@ def afficher_interface_expert() -> None:
                 ("Polices suspectes", len(forensic.fonts_suspectes) > 0,
                  ", ".join(forensic.fonts_suspectes) or "Aucune"),
             ]
+
             for label, flag, detail in check_items:
                 icon = "🔴" if flag else "🟢"
                 suffix = f" — {detail}" if detail else ""
@@ -991,38 +729,37 @@ def afficher_interface_expert() -> None:
         st.divider()
         st.markdown("**Métadonnées du PDF**")
         if analysis.metadata:
-            st.markdown("\n".join([f"**{k}:** {v}" for k, v in analysis.metadata.items()]))
+            metadata_display = "\n".join([f"**{k}:** {v}" for k, v in analysis.metadata.items()])
+            st.markdown(metadata_display)
         else:
             st.caption("Aucune métadonnée disponible")
 
     with tab3:
         st.subheader("Verdict global et rapport")
 
-        math_r    = st.session_state.get("math_result")
+        math_r = st.session_state.get("math_result")
         forensic_r = st.session_state.get("forensic_result")
 
         if math_r is None or forensic_r is None:
             st.warning("⚠️ Veuillez d'abord consulter les onglets précédents.")
             return
 
-        verdict = calculer_verdict(
-            math_r, forensic_r,
-            nom_fichier=st.session_state.get("current_pdf_name", "")
-        )
+        verdict = calculer_verdict(math_r, forensic_r)
 
         verdict_colors = {
             "🔴": ("#dc2626", "danger"),
             "🟠": ("#d97706", "warning"),
             "🟢": ("#16a34a", "success"),
         }
+
         verdict_icon = verdict.statut[0]
-        color, _ = verdict_colors.get(verdict_icon, ("#94a3b8", "info"))
+        color, severity = verdict_colors.get(verdict_icon, ("#94a3b8", "info"))
 
         st.markdown(f"""
         <div style="background:linear-gradient(135deg,{color}22,{color}11);border:2px solid {color};
                     border-radius:10px;padding:20px;margin-bottom:20px">
             <h3 style="color:{color};margin:0">{verdict.statut}</h3>
-            <p style="color:#64748b;margin:8px 0 0 0">Score de risque : <strong style="color:{color}">{verdict.score_risque}/100</strong></p>
+            <p style="color:#64748b;margin:8px 0 0 0">Score de risque: <strong style="color:{color}">{verdict.score_risque}/100</strong></p>
         </div>
         """, unsafe_allow_html=True)
 
@@ -1034,14 +771,14 @@ def afficher_interface_expert() -> None:
 
         st.markdown("#### Recommandations")
 
-        if verdict.score_risque >= 70:
+        if verdict.score_risque >= 80:
             recs = [
                 "🔴 **Suspendre la décision** — demander l'original du document au candidat",
                 "🔴 **Vérification humaine complémentaire** (contact employeur, etc.)",
                 "🔴 **La décision finale appartient au bailleur** (aucune décision automatisée)",
             ]
             st.error("Ce document présente des signaux d'alerte techniques importants")
-        elif verdict.score_risque >= 40:
+        elif verdict.score_risque >= 50:
             recs = [
                 "🟠 **Alerter le bailleur** sur les anomalies détectées",
                 "🟠 **Vérification humaine rapide** recommandée avant signature",
@@ -1060,25 +797,21 @@ def afficher_interface_expert() -> None:
 
         st.divider()
 
-        # ── Saisie email client AVANT de générer le nom du fichier ──
+        pdf_bytes = build_report_pdf(verdict, forensic_r)
+        filename = get_report_filename(verdict.statut)
+
         st.markdown("#### Transmission du rapport")
         st.warning(
             "⚠️ L'email standard n'est pas chiffré et ce rapport contient des données personnelles. "
-            "Privilégiez le **téléchargement** puis une transmission sécurisée."
+            "Privilégiez le **téléchargement** puis une transmission sécurisée, ou n'envoyez qu'à une "
+            "adresse de confiance, avec l'accord de la personne concernée."
         )
 
-        # Pré-remplir avec l'email extrait de la boîte de réception si disponible
-        email_prefill = st.session_state.get("inbox_client_email", "")
         email_client = st.text_input(
             "📧 Adresse email du client :",
-            value=email_prefill,
             placeholder="client@exemple.com",
             key="email_input"
         )
-
-        # Nom du fichier inclut maintenant l'email et le bon niveau d'alerte
-        pdf_bytes = build_report_pdf(verdict, forensic_r)
-        filename  = get_report_filename(verdict.statut, email_client)
 
         col_send, col_dl = st.columns(2)
 
@@ -1109,7 +842,8 @@ def afficher_interface_expert() -> None:
         st.divider()
         st.caption(
             "💡 **Note** : Ce rapport est un outil d'aide à la décision. "
-            "Il ne constitue pas une garantie juridique."
+            "Il ne constitue pas une garantie juridique. "
+            "Un document imprimé puis re-scanné après modification peut échapper à l'analyse."
         )
 
 
