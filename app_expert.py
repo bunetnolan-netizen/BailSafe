@@ -603,6 +603,12 @@ def afficher_interface_expert() -> None:
         st.info("📌 Déposez un fichier PDF pour démarrer l'analyse complète.")
         return
 
+    # FIX: limite taille 10MB — évite crash mémoire sur Render free tier
+    MAX_SIZE_MB = 10
+    if fichier_pdf.size > MAX_SIZE_MB * 1024 * 1024:
+        st.error(f"❌ Fichier trop volumineux ({fichier_pdf.size / 1024 / 1024:.1f} MB). Limite : {MAX_SIZE_MB} MB. Compressez le PDF avant de l'envoyer.")
+        return
+
     if "current_pdf_name" not in st.session_state or st.session_state["current_pdf_name"] != fichier_pdf.name:
         with st.spinner("🔍 Extraction et analyse du document en cours…"):
             st.session_state["analysis"] = extract_pdf_content(fichier_pdf)
