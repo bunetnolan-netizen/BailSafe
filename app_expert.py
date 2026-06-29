@@ -5,6 +5,7 @@ import imaplib
 import os
 import re
 import logging
+import socket
 from dataclasses import dataclass
 from datetime import datetime
 from email.header import decode_header as _decode_header
@@ -30,7 +31,7 @@ try:
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
     from reportlab.lib.units import mm
     from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-    from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+    from reportlab.lib.enums import TA_CENTER, TA_LEFT
     from reportlab.lib import colors
 except ImportError:
     st.error("❌ reportlab non installé. Lance : pip install -r requirements.txt")
@@ -83,6 +84,7 @@ class Verdict:
     score_risque: int
     statut: str
     date_analyse: str
+    nom_fichier: str = ""   # nom du PDF analysé — affiché dans le rapport
 
 
 # ============== LOGIQUE MÉTIER ==============
@@ -176,6 +178,7 @@ def analyser_structure_pikepdf(pdf_bytes: bytes) -> dict:
     resultat = {
         "xref_multiple":        False,
         "javascript_structure": False,
+        "fichiers_incorpores":  False,
         "pdf_malformed":        False,
         "erreur":               None,
     }
@@ -189,17 +192,30 @@ def analyser_structure_pikepdf(pdf_bytes: bytes) -> dict:
             if pdf.trailer.get("/Prev") is not None:
                 resultat["xref_multiple"] = True
 
-            # 2. JavaScript dans la structure PDF (catalogue et arbre des noms)
             root = pdf.trailer.get("/Root")
             if root is not None:
+                # 2. JavaScript dans la structure réelle du PDF
                 if "/JavaScript" in root or "/JS" in root:
                     resultat["javascript_structure"] = True
                 names = root.get("/Names")
                 if names is not None and "/JavaScript" in names:
                     resultat["javascript_structure"] = True
 
+                # 3. Fichiers incorporés (EmbeddedFiles dans l'arbre des noms)
+                if names is not None and "/EmbeddedFiles" in names:
+                    resultat["fichiers_incorpores"] = True
+
+            # 4. Vérification objet par objet pour /EmbeddedFile
+            if not resultat["fichiers_incorpores"]:
+                for obj in pdf.objects:
+                    try:
+                        if hasattr(obj, "get") and obj.get("/Type") == "/Filespec":
+                            resultat["fichiers_incorpores"] = True
+                            break
+                    except Exception:
+                        continue
+
     except Exception as e:
-        # PDF endommagé ou illisible = signal forensique en soi
         resultat["pdf_malformed"] = True
         resultat["erreur"] = str(e)[:100]
 
@@ -228,8 +244,7 @@ def analyser_forensic(analysis: PDFAnalysis) -> ForensicResult:
             if outil in creator:
                 logiciels.append(outil.capitalize())
 
-    # ── Fichiers incorporés (dans les métadonnées textuelles) ─────────────────
-    fichiers_inc = "/EmbeddedFile" in str(metadata)
+    # ── Fichiers incorporés — détectés via pikepdf (voir analyser_structure_pikepdf) ──
 
     # ── Polices suspectes ──────────────────────────────────────────────────────
     fonts_sus = []
@@ -240,6 +255,7 @@ def analyser_forensic(analysis: PDFAnalysis) -> ForensicResult:
     struct = analyser_structure_pikepdf(analysis.raw_bytes)
     xref_anormal      = struct["xref_multiple"]
     javascript_reel   = struct["javascript_structure"]
+    fichiers_inc      = struct["fichiers_incorpores"]   # Fix #2 — détection réelle via pikepdf
     pdf_malformed     = struct["pdf_malformed"]
 
     # ── Score forensique ───────────────────────────────────────────────────────
@@ -266,7 +282,7 @@ def analyser_forensic(analysis: PDFAnalysis) -> ForensicResult:
     )
 
 
-def calculer_verdict(math: MathResult, forensic: ForensicResult) -> Verdict:
+def calculer_verdict(math: MathResult, forensic: ForensicResult, nom_fichier: str = "") -> Verdict:
     """Calcule verdict global.
 
     Si le PDF est un scan (texte illisible), on ne pénalise pas math à 0 :
@@ -290,7 +306,8 @@ def calculer_verdict(math: MathResult, forensic: ForensicResult) -> Verdict:
     return Verdict(
         score_risque=score_global,
         statut=statut,
-        date_analyse=datetime.now().strftime("%d/%m/%Y à %H:%M")
+        date_analyse=datetime.now().strftime("%d/%m/%Y à %H:%M"),
+        nom_fichier=nom_fichier,
     )
 
 
@@ -346,7 +363,8 @@ def build_report_pdf(verdict: Verdict, forensic: ForensicResult) -> bytes:
     story.append(Spacer(1, 12))
 
     info_data = [
-        ["📅 Date d'analyse", verdict.date_analyse],
+        ["📅 Date d'analyse",  verdict.date_analyse],
+        ["📄 Fichier analysé", verdict.nom_fichier or "—"],
         ["🔐 Confidentialité", "Ce rapport est destiné au bailleur uniquement"],
     ]
     info_table = Table(info_data, colWidths=[80*mm, 80*mm])
@@ -513,7 +531,7 @@ def envoyer_rapport(secrets: AppSecrets, email_dest: str, pdf_bytes: bytes, file
         part.add_header('Content-Disposition', f'attachment; filename="{filename}"')
         msg.attach(part)
 
-        with smtplib.SMTP('smtp.gmail.com', 587) as server:
+        with smtplib.SMTP('smtp.gmail.com', 587, timeout=15) as server:
             server.starttls()
             server.login(secrets.email_expediteur, secrets.mot_de_passe_email)
             server.send_message(msg)
@@ -587,22 +605,33 @@ def check_password() -> bool:
 
 # ============== BOÎTE DE RÉCEPTION GMAIL (IMAP) ==============
 
-def lire_documents_en_attente(secrets: AppSecrets) -> List[dict]:
-    """
-    Lit les emails non lus contenant un PDF BailSafe dans Gmail via IMAP SSL.
+_EMAIL_RE = re.compile(r'[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}')
+_IMAP_TIMEOUT = 15  # secondes
 
-    Cherche les emails avec "Document BailSafe" dans le sujet, non lus.
-    Retourne une liste de dicts :
-      uid, sujet, client_email, filename, pdf_bytes, date
+
+def _extraire_email_depuis_sujet(sujet: str) -> str:
+    """Extrait le premier email valide trouvé dans le sujet.
+    Robuste face aux variantes d'encodage du séparateur '—'."""
+    match = _EMAIL_RE.search(sujet)
+    return match.group(0) if match else ""
+
+
+def lire_documents_en_attente(secrets: AppSecrets) -> Tuple[List[dict], str]:
+    """
+    Lit les emails non lus 'Document BailSafe' dans Gmail via IMAP SSL.
+
+    Retourne (documents, erreur) :
+      - documents : liste de dicts {uid, sujet, client_email, filename, pdf_bytes, date}
+      - erreur    : message d'erreur lisible ou "" si tout va bien
     """
     if not secrets.email_expediteur or not secrets.mot_de_passe_email:
-        return []
+        return [], "Secrets email non configurés."
     try:
+        socket.setdefaulttimeout(_IMAP_TIMEOUT)
         mail = imaplib.IMAP4_SSL("imap.gmail.com", 993)
         mail.login(secrets.email_expediteur, secrets.mot_de_passe_email)
         mail.select("INBOX")
 
-        # Chercher les emails non lus venant de BailSafe (sujet contient "Document BailSafe")
         _, uids = mail.search(None, '(UNSEEN SUBJECT "Document BailSafe")')
 
         documents = []
@@ -612,7 +641,7 @@ def lire_documents_en_attente(secrets: AppSecrets) -> List[dict]:
                 raw = msg_data[0][1]
                 msg = _email_lib.message_from_bytes(raw)
 
-                # Décoder le sujet
+                # Décoder le sujet (robuste multi-encodage)
                 sujet_brut = msg.get("Subject", "")
                 sujet_parts = _decode_header(sujet_brut)
                 sujet = ""
@@ -620,18 +649,14 @@ def lire_documents_en_attente(secrets: AppSecrets) -> List[dict]:
                     if isinstance(part, bytes):
                         sujet += part.decode(enc or "utf-8", errors="replace")
                     else:
-                        sujet += part
+                        sujet += str(part)
 
                 date = msg.get("Date", "Date inconnue")
 
-                # Extraire l'email client depuis le sujet
-                # Format : "📎 Document BailSafe — client@email.com — fichier.pdf"
-                client_email = ""
-                parties = sujet.split("—")
-                if len(parties) >= 2:
-                    client_email = parties[1].strip()
+                # Extraction email par regex — robuste face aux variantes de "—"
+                client_email = _extraire_email_depuis_sujet(sujet)
 
-                # Trouver la pièce jointe PDF
+                # Pièce jointe PDF
                 pdf_bytes = None
                 filename = "document.pdf"
                 for part in msg.walk():
@@ -655,11 +680,23 @@ def lire_documents_en_attente(secrets: AppSecrets) -> List[dict]:
 
         mail.close()
         mail.logout()
-        return documents
+        return documents, ""
 
+    except imaplib.IMAP4.error as e:
+        msg = str(e)
+        if "AUTHENTICATIONFAILED" in msg.upper():
+            return [], "Identifiants Gmail incorrects. Vérifiez EMAIL_EXPEDITEUR et MOT_DE_PASSE_EMAIL."
+        return [], f"Erreur Gmail IMAP : {msg[:80]}"
+    except socket.timeout:
+        return [], "Délai de connexion dépassé. Vérifiez votre connexion internet."
     except Exception as e:
-        logger.error(f"Erreur IMAP Gmail: {e}")
-        return []
+        err = str(e)
+        if "IMAP" in err.upper() or "disabled" in err.lower():
+            return [], (
+                "Accès IMAP désactivé dans Gmail. "
+                "Activez-le : Gmail → Paramètres → Transfert et POP/IMAP → Activer IMAP."
+            )
+        return [], f"Erreur connexion Gmail : {err[:80]}"
 
 
 def marquer_email_traite(secrets: AppSecrets, uid: bytes) -> None:
@@ -755,11 +792,17 @@ def afficher_interface_expert() -> None:
     if "inbox_docs" not in st.session_state:
         st.session_state.inbox_docs = None
 
-    col_refresh, col_info = st.columns([1, 4])
-    with col_refresh:
-        if st.button("🔄 Actualiser", use_container_width=True):
-            with st.spinner("Connexion à Gmail…"):
-                st.session_state.inbox_docs = lire_documents_en_attente(secrets)
+    if st.button("🔄 Actualiser", use_container_width=False):
+        with st.spinner("Connexion à Gmail…"):
+            docs, erreur = lire_documents_en_attente(secrets)
+            st.session_state.inbox_docs = docs
+            if erreur:
+                st.session_state.inbox_erreur = erreur
+            else:
+                st.session_state.pop("inbox_erreur", None)
+
+    if st.session_state.get("inbox_erreur"):
+        st.error(f"❌ {st.session_state.inbox_erreur}")
 
     if st.session_state.inbox_docs is None:
         st.info("Clique sur **Actualiser** pour charger les documents reçus par email.")
@@ -814,15 +857,22 @@ def afficher_interface_expert() -> None:
 
     fichier_pdf = st.file_uploader("Déposez le PDF à auditer", type="pdf")
 
-    if fichier_pdf is None:
-        st.info("📌 Déposez un fichier PDF pour démarrer l'analyse complète.")
-        return
+    # ── Cas 1 : fichier déposé manuellement ──────────────────────────────────
+    if fichier_pdf is not None:
+        if (
+            "current_pdf_name" not in st.session_state
+            or st.session_state["current_pdf_name"] != fichier_pdf.name
+        ):
+            with st.spinner("🔍 Extraction et analyse du document en cours…"):
+                st.session_state["analysis"] = extract_pdf_content(fichier_pdf)
+                st.session_state["current_pdf_name"] = fichier_pdf.name
+                st.session_state.pop("forensic_result", None)
+                st.session_state.pop("math_result", None)
 
-    if "current_pdf_name" not in st.session_state or st.session_state["current_pdf_name"] != fichier_pdf.name:
-        with st.spinner("🔍 Extraction et analyse du document en cours…"):
-            st.session_state["analysis"] = extract_pdf_content(fichier_pdf)
-            st.session_state["current_pdf_name"] = fichier_pdf.name
-            st.session_state.pop("forensic_result", None)
+    # ── Cas 2 : rien chargé (ni inbox, ni upload) ─────────────────────────────
+    if "analysis" not in st.session_state:
+        st.info("📌 Déposez un fichier PDF ou chargez-en un depuis la boîte de réception.")
+        return
 
     analysis = st.session_state["analysis"]
 
@@ -955,7 +1005,10 @@ def afficher_interface_expert() -> None:
             st.warning("⚠️ Veuillez d'abord consulter les onglets précédents.")
             return
 
-        verdict = calculer_verdict(math_r, forensic_r)
+        verdict = calculer_verdict(
+            math_r, forensic_r,
+            nom_fichier=st.session_state.get("current_pdf_name", "")
+        )
 
         verdict_colors = {
             "🔴": ("#dc2626", "danger"),
