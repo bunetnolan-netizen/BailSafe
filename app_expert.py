@@ -779,10 +779,19 @@ def afficher_interface_expert() -> None:
     <div style="color:#64748b;font-size:11px;margin-top:4px">{doc['date']}</div>
 </div>
 """, unsafe_allow_html=True)
+                paiement_ok = st.checkbox(
+                    "💳 Paiement PayPal vérifié",
+                    key=f"pay_{i}",
+                    help="Vérifiez dans votre tableau de bord PayPal avant d'analyser."
+                )
                 c1, c2 = st.columns([2, 1])
                 with c1:
-                    if st.button(f"📂 Charger et analyser", key=f"load_{i}", use_container_width=True):
-                        # Charger le PDF depuis Gmail dans la session
+                    if st.button(
+                        "📂 Charger et analyser",
+                        key=f"load_{i}",
+                        use_container_width=True,
+                        disabled=not paiement_ok
+                    ):
                         pseudo_file = BytesIO(doc["pdf_bytes"])
                         pseudo_file.name = doc["filename"]
                         with st.spinner("Analyse en cours…"):
@@ -791,7 +800,9 @@ def afficher_interface_expert() -> None:
                             st.session_state["inbox_client_email"] = doc["client_email"]
                             st.session_state.pop("forensic_result", None)
                             st.session_state.pop("math_result", None)
-                        st.success(f"✅ PDF chargé — analysez dans les onglets ci-dessous.")
+                        st.success("✅ PDF chargé — analysez dans les onglets ci-dessous.")
+                    if not paiement_ok:
+                        st.caption("⚠️ Cochez la case paiement pour débloquer l'analyse.")
                 with c2:
                     if st.button(f"✅ Traité", key=f"done_{i}", use_container_width=True):
                         marquer_email_traite(secrets, doc["uid"])
