@@ -581,14 +581,45 @@ html_content = f"""
         <div class="s-label">// Conformité_RGPD</div>
         <h2 class="s-title">Confidentialité & <span class="accent">mentions légales</span></h2>
         <div class="s-desc" style="max-width:760px">
-            <p><strong>Responsable de traitement :</strong> Nolan Bunet — BailSafe, Sainte-Rose (Guadeloupe). Contact : {CONTACT_EMAIL}.</p>
-            <p style="margin-top:12px"><strong>Données collectées :</strong> via le formulaire (nom, email, téléphone, type de document) et, lors de l'audit, les documents PDF que vous transmettez volontairement.</p>
-            <p style="margin-top:12px"><strong>Finalité :</strong> traiter votre commande et réaliser l'analyse documentaire technique demandée.</p>
-            <p style="margin-top:12px"><strong>Base légale :</strong> exécution de mesures précontractuelles/contractuelles et intérêt légitime du bailleur à vérifier l'authenticité des pièces.</p>
-            <p style="margin-top:12px"><strong>Pièces de tiers :</strong> si vous transmettez les documents d'un candidat locataire, vous devez l'en informer. BailSafe n'a vocation à analyser que les documents légalement exigibles (décret n°2015-1437).</p>
-            <p style="margin-top:12px"><strong>Conservation :</strong> documents et données de commande supprimés sous 30 jours maximum.</p>
-            <p style="margin-top:12px"><strong>Aucune décision automatisée :</strong> le rapport est un avis technique consultatif (art. 22 RGPD).</p>
-            <p style="margin-top:12px"><strong>Vos droits :</strong> accès, rectification, suppression — à exercer à {CONTACT_EMAIL}. Réclamation possible auprès de la CNIL (cnil.fr).</p>
+
+            <p><strong>Éditeur du service</strong><br>
+            Nolan Bunet — BailSafe, auto-entrepreneur, Sainte-Rose (97115), Guadeloupe.<br>
+            SIRET : <em>en cours d'immatriculation</em>.<br>
+            Contact : <a href="mailto:{CONTACT_EMAIL}" style="color:#f59e0b">{CONTACT_EMAIL}</a>.</p>
+
+            <p style="margin-top:16px"><strong>Hébergement</strong><br>
+            Ce service est hébergé par Streamlit Inc. (San Francisco, CA, USA) via Streamlit Community Cloud.
+            Les fichiers transmis transitent par les serveurs Streamlit le temps de la session, puis sont supprimés.</p>
+
+            <p style="margin-top:16px"><strong>Données collectées</strong><br>
+            Via le formulaire de commande : nom, email, téléphone (optionnel), type de document.<br>
+            Via l'espace de dépôt : le fichier PDF que vous transmettez volontairement pour analyse.</p>
+
+            <p style="margin-top:16px"><strong>Finalité du traitement</strong><br>
+            Traiter votre commande et réaliser l'analyse technique d'authenticité documentaire demandée.</p>
+
+            <p style="margin-top:16px"><strong>Base légale (art. 6 RGPD)</strong><br>
+            Exécution du contrat (art. 6.1.b) pour le traitement de votre commande.<br>
+            Intérêt légitime du bailleur (art. 6.1.f) pour la vérification d'authenticité des pièces justificatives.</p>
+
+            <p style="margin-top:16px"><strong>Documents de tiers — obligation d'information</strong><br>
+            Si vous transmettez les documents d'un candidat locataire, vous avez l'obligation légale de l'en informer préalablement (art. 13 et 14 RGPD).
+            BailSafe n'analyse que les documents légalement exigibles au sens du décret n°2015-1437 du 5 novembre 2015.</p>
+
+            <p style="margin-top:16px"><strong>Aucune décision automatisée</strong><br>
+            Le rapport BailSafe est un avis technique consultatif portant sur l'intégrité du document, non sur la personne.
+            La décision d'accepter ou de refuser un dossier appartient exclusivement au bailleur (art. 22 RGPD).</p>
+
+            <p style="margin-top:16px"><strong>Durée de conservation</strong><br>
+            Documents PDF et données de commande supprimés sous 30 jours maximum à compter de la livraison du rapport.</p>
+
+            <p style="margin-top:16px"><strong>Vos droits</strong><br>
+            Conformément aux articles 15 à 21 du RGPD, vous disposez des droits suivants :<br>
+            accès · rectification · effacement · opposition · limitation du traitement · portabilité.<br>
+            Pour les exercer : <a href="mailto:{CONTACT_EMAIL}?subject=RGPD - Exercice de droits" style="color:#f59e0b">{CONTACT_EMAIL}</a>.
+            Réponse garantie sous 1 mois (délai légal).<br>
+            En cas de réclamation non traitée : <a href="https://www.cnil.fr" target="_blank" style="color:#f59e0b">cnil.fr</a>.</p>
+
         </div>
     </section>
 
