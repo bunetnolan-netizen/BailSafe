@@ -257,14 +257,13 @@ def calculer_verdict(math: MathResult, forensic: ForensicResult) -> Verdict:
     """Calcule verdict global."""
     score_math = 50 if math.fraude_math else 0
     score_forensic = forensic.score_risque_forensic
-    score_global = int((score_math + score_forensic) / 2)
-    # FIX: fraude math détectée = minimum modéré (50), jamais vert
-    if math.fraude_math and score_global < 50:
-        score_global = 50
+    # FIX: max() au lieu de moyenne — l'ancienne formule (50+95)/2=72 rendait MAJEURES impossible
+    # Avec max() : un signal élevé dans l'un ou l'autre suffit à déclencher l'alerte maximale
+    score_global = max(score_math, score_forensic)
 
-    if score_global >= 80:
+    if score_global >= 65:
         statut = "🔴 ANOMALIES MAJEURES sur le document — Vérification humaine obligatoire"
-    elif score_global >= 50:
+    elif score_global >= 25:
         statut = "🟠 ANOMALIES MODÉRÉES sur le document — Vérification humaine recommandée"
     else:
         statut = "🟢 AUCUNE ANOMALIE TECHNIQUE détectée sur le document"
@@ -623,6 +622,7 @@ def afficher_interface_expert() -> None:
     if "forensic_result" not in st.session_state:
         # FIX: analyser_forensic reçoit maintenant l'objet analysis complet (avec pdf_bytes)
         st.session_state["forensic_result"] = analyser_forensic(analysis)
+        analysis.pdf_bytes = b""  # Libérer mémoire — bytes inutiles après l'analyse forensique
 
     forensic = st.session_state["forensic_result"]
 
