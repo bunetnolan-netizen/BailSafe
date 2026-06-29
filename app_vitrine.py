@@ -30,7 +30,7 @@ def get_secrets() -> Tuple[str, str]:
 def email_valide(email: str) -> bool:
     return bool(EMAIL_REGEX.match(email.strip()))
 
-def envoyer_document(pdf_bytes: bytes, filename: str, client_email: str) -> Tuple[bool, str]:
+def envoyer_document(pdf_bytes: bytes, filename: str, client_email: str, ref_paypal: str = "") -> Tuple[bool, str]:
     """Envoie le PDF client à Nolan par email via Gmail SMTP."""
     if len(pdf_bytes) > MAX_PDF_BYTES:
         return False, f"Fichier trop lourd ({len(pdf_bytes)//1024//1024} Mo). Maximum 10 Mo."
@@ -43,13 +43,15 @@ def envoyer_document(pdf_bytes: bytes, filename: str, client_email: str) -> Tupl
         msg["To"]      = CONTACT_EMAIL
         msg["Subject"] = f"📎 Document BailSafe — {client_email} — {filename}"
 
+        ref_ligne = f"Réf. PayPal  : {ref_paypal}\n" if ref_paypal else "Réf. PayPal  : non renseignée\n"
         body = (
             f"Nouveau document reçu via BailSafe.\n\n"
             f"Email client : {client_email}\n"
             f"Fichier      : {filename}\n"
-            f"Taille       : {len(pdf_bytes)//1024} Ko\n\n"
+            f"Taille       : {len(pdf_bytes)//1024} Ko\n"
+            f"{ref_ligne}\n"
             f"Le document est en pièce jointe.\n"
-            f"Retrouvez la commande correspondante dans Formspree (même email client)."
+            f"Vérifiez le paiement PayPal avec la référence ci-dessus avant d'analyser."
         )
         msg.attach(MIMEText(body, "plain", "utf-8"))
 
@@ -778,6 +780,11 @@ with col_center:
             placeholder="vous@email.com",
             help="Le même que celui saisi dans le formulaire de commande"
         )
+        ref_paypal_input = st.text_input(
+            "Référence de transaction PayPal",
+            placeholder="Ex : 4XY12345AB678",
+            help="Optionnel — visible dans l'email de confirmation PayPal. Permet à BailSafe de vérifier votre paiement plus rapidement."
+        )
         pdf_file = st.file_uploader(
             "Votre document PDF *",
             type=["pdf"],
@@ -803,7 +810,8 @@ with col_center:
                     ok, msg_retour = envoyer_document(
                         pdf_bytes=pdf_bytes,
                         filename=pdf_file.name,
-                        client_email=email_input.strip()
+                        client_email=email_input.strip(),
+                        ref_paypal=ref_paypal_input.strip()
                     )
                 if ok:
                     st.session_state.document_envoye = True
