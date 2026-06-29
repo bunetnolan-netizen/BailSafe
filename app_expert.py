@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import hashlib
+import imaplib
 import os
 import re
 import logging
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional, Tuple
+from email.header import decode_header as _decode_header
+import email as _email_lib
+from typing import Optional, Tuple, List
 import smtplib
 from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
@@ -582,6 +585,96 @@ def check_password() -> bool:
     return False
 
 
+# ============== BOÎTE DE RÉCEPTION GMAIL (IMAP) ==============
+
+def lire_documents_en_attente(secrets: AppSecrets) -> List[dict]:
+    """
+    Lit les emails non lus contenant un PDF BailSafe dans Gmail via IMAP SSL.
+
+    Cherche les emails avec "Document BailSafe" dans le sujet, non lus.
+    Retourne une liste de dicts :
+      uid, sujet, client_email, filename, pdf_bytes, date
+    """
+    if not secrets.email_expediteur or not secrets.mot_de_passe_email:
+        return []
+    try:
+        mail = imaplib.IMAP4_SSL("imap.gmail.com", 993)
+        mail.login(secrets.email_expediteur, secrets.mot_de_passe_email)
+        mail.select("INBOX")
+
+        # Chercher les emails non lus venant de BailSafe (sujet contient "Document BailSafe")
+        _, uids = mail.search(None, '(UNSEEN SUBJECT "Document BailSafe")')
+
+        documents = []
+        for uid in uids[0].split():
+            try:
+                _, msg_data = mail.fetch(uid, "(RFC822)")
+                raw = msg_data[0][1]
+                msg = _email_lib.message_from_bytes(raw)
+
+                # Décoder le sujet
+                sujet_brut = msg.get("Subject", "")
+                sujet_parts = _decode_header(sujet_brut)
+                sujet = ""
+                for part, enc in sujet_parts:
+                    if isinstance(part, bytes):
+                        sujet += part.decode(enc or "utf-8", errors="replace")
+                    else:
+                        sujet += part
+
+                date = msg.get("Date", "Date inconnue")
+
+                # Extraire l'email client depuis le sujet
+                # Format : "📎 Document BailSafe — client@email.com — fichier.pdf"
+                client_email = ""
+                parties = sujet.split("—")
+                if len(parties) >= 2:
+                    client_email = parties[1].strip()
+
+                # Trouver la pièce jointe PDF
+                pdf_bytes = None
+                filename = "document.pdf"
+                for part in msg.walk():
+                    if part.get_content_type() == "application/pdf":
+                        filename = part.get_filename() or "document.pdf"
+                        pdf_bytes = part.get_payload(decode=True)
+                        break
+
+                if pdf_bytes:
+                    documents.append({
+                        "uid":          uid,
+                        "sujet":        sujet,
+                        "client_email": client_email,
+                        "filename":     filename,
+                        "pdf_bytes":    pdf_bytes,
+                        "date":         date,
+                    })
+            except Exception as e:
+                logger.warning(f"Erreur lecture email uid {uid}: {e}")
+                continue
+
+        mail.close()
+        mail.logout()
+        return documents
+
+    except Exception as e:
+        logger.error(f"Erreur IMAP Gmail: {e}")
+        return []
+
+
+def marquer_email_traite(secrets: AppSecrets, uid: bytes) -> None:
+    """Marque l'email comme lu dans Gmail (document traité)."""
+    try:
+        mail = imaplib.IMAP4_SSL("imap.gmail.com", 993)
+        mail.login(secrets.email_expediteur, secrets.mot_de_passe_email)
+        mail.select("INBOX")
+        mail.store(uid, "+FLAGS", "\\Seen")
+        mail.close()
+        mail.logout()
+    except Exception as e:
+        logger.warning(f"Impossible de marquer l'email comme lu : {e}")
+
+
 # ============== INTERFACE STREAMLIT ==============
 
 def afficher_interface_expert() -> None:
@@ -655,7 +748,60 @@ def afficher_interface_expert() -> None:
         return
     st.markdown("---")
 
-    fichier_pdf = st.file_uploader("📂 Déposez le PDF à auditer", type="pdf")
+    # ── Boîte de réception Gmail ───────────────────────────────────────────────
+    st.markdown("### 📥 Documents en attente")
+
+    # Initialiser ou vider le cache si Nolan clique sur Actualiser
+    if "inbox_docs" not in st.session_state:
+        st.session_state.inbox_docs = None
+
+    col_refresh, col_info = st.columns([1, 4])
+    with col_refresh:
+        if st.button("🔄 Actualiser", use_container_width=True):
+            with st.spinner("Connexion à Gmail…"):
+                st.session_state.inbox_docs = lire_documents_en_attente(secrets)
+
+    if st.session_state.inbox_docs is None:
+        st.info("Clique sur **Actualiser** pour charger les documents reçus par email.")
+    elif len(st.session_state.inbox_docs) == 0:
+        st.success("✅ Aucun document en attente.")
+    else:
+        st.markdown(f"**{len(st.session_state.inbox_docs)} document(s) non traité(s) :**")
+        for i, doc in enumerate(st.session_state.inbox_docs):
+            with st.container():
+                st.markdown(f"""
+<div style="background:#1e293b;border:1px solid #334155;border-radius:8px;
+            padding:14px 18px;margin-bottom:10px">
+    <div style="color:#f59e0b;font-size:12px;font-weight:700;margin-bottom:4px">
+        📄 {doc['filename']}
+    </div>
+    <div style="color:#e2e8f0;font-size:13px">📧 {doc['client_email']}</div>
+    <div style="color:#64748b;font-size:11px;margin-top:4px">{doc['date']}</div>
+</div>
+""", unsafe_allow_html=True)
+                c1, c2 = st.columns([2, 1])
+                with c1:
+                    if st.button(f"📂 Charger et analyser", key=f"load_{i}", use_container_width=True):
+                        # Charger le PDF depuis Gmail dans la session
+                        pseudo_file = BytesIO(doc["pdf_bytes"])
+                        pseudo_file.name = doc["filename"]
+                        with st.spinner("Analyse en cours…"):
+                            st.session_state["analysis"] = extract_pdf_content(pseudo_file)
+                            st.session_state["current_pdf_name"] = doc["filename"]
+                            st.session_state["inbox_client_email"] = doc["client_email"]
+                            st.session_state.pop("forensic_result", None)
+                            st.session_state.pop("math_result", None)
+                        st.success(f"✅ PDF chargé — analysez dans les onglets ci-dessous.")
+                with c2:
+                    if st.button(f"✅ Traité", key=f"done_{i}", use_container_width=True):
+                        marquer_email_traite(secrets, doc["uid"])
+                        st.session_state.inbox_docs.pop(i)
+                        st.rerun()
+
+    st.markdown("---")
+    st.markdown("### 📂 Ou déposez un PDF manuellement")
+
+    fichier_pdf = st.file_uploader("Déposez le PDF à auditer", type="pdf")
 
     if fichier_pdf is None:
         st.info("📌 Déposez un fichier PDF pour démarrer l'analyse complète.")
@@ -857,8 +1003,11 @@ def afficher_interface_expert() -> None:
             "Privilégiez le **téléchargement** puis une transmission sécurisée."
         )
 
+        # Pré-remplir avec l'email extrait de la boîte de réception si disponible
+        email_prefill = st.session_state.get("inbox_client_email", "")
         email_client = st.text_input(
             "📧 Adresse email du client :",
+            value=email_prefill,
             placeholder="client@exemple.com",
             key="email_input"
         )
