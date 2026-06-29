@@ -12,7 +12,7 @@ st.set_page_config(
 # ─────────────────────────────────────────────────────────────────────────────
 # Formspree : créer un formulaire sur https://formspree.io → copier l'ID ici
 # Ex : "https://formspree.io/f/xpwzabcd"
-FORMSPREE_ENDPOINT = "https://formspree.io/f/REMPLACE_PAR_TON_ID_FORMSPREE"
+FORMSPREE_ENDPOINT = "https://formspree.io/f/xqevqgjo"
 
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -22,7 +22,19 @@ html_content = f"""
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BailSafe | Détection de Fraude Documentaire — Analyse Forensique</title>
+    <title>BailSafe | Vérification Anti-Fraude Documentaire — Guadeloupe</title>
+    <meta name="description" content="BailSafe détecte les fausses fiches de paie, avis d'imposition et contrats falsifiés grâce à une analyse forensique PDF. Rapport sous 24h pour 20€. Service pour propriétaires bailleurs en Guadeloupe et Antilles.">
+    <meta name="keywords" content="bail fraude documentaire fausse fiche de paie vérification locataire Guadeloupe Antilles forensique PDF">
+    <meta name="author" content="BailSafe — Nolan Bunet">
+    <meta name="robots" content="index, follow">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="BailSafe — Détectez les faux documents de vos locataires">
+    <meta property="og:description" content="Analyse forensique PDF de vos dossiers locataires. Rapport anti-fraude sous 24h pour 20€. Ne donnez pas les clés à un fraudeur.">
+    <meta property="og:url" content="https://bail-safe.streamlit.app">
+    <meta property="og:locale" content="fr_FR">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="BailSafe — Anti-Fraude Documentaire">
+    <meta name="twitter:description" content="Analyse forensique PDF de vos dossiers locataires. Rapport sous 24h, 20€.">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -440,14 +452,22 @@ html_content = f"""
                 <!-- CONFIRMATION + PAIEMENT -->
                 <div class="payment-confirm" id="paymentConfirm">
                     <div class="pc-icon">✅</div>
-                    <div class="pc-title">Demande reçue !</div>
-                    <div class="pc-sub">Votre demande a bien été envoyée. Finalisez maintenant le paiement de <strong style="color:#f59e0b">20 €</strong> pour lancer l'analyse. Vous recevrez le rapport sous 24h à votre adresse email.</div>
+                    <div class="pc-title">Demande enregistrée — BailSafe</div>
+                    <div class="pc-sub">
+                        Votre demande a été transmise à Nolan.<br><br>
+                        <strong style="color:#f59e0b">Étape suivante : payez 20 € via PayPal</strong><br><br>
+                        <span style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:6px;padding:10px 14px;display:inline-block;font-size:13px;color:#fbbf24;text-align:left;">
+                            ⚠️ Dans la note PayPal, indiquez votre adresse email :<br>
+                            <strong id="confirm-email" style="color:#fff;font-size:15px;"></strong>
+                        </span><br><br>
+                        Vous recevrez le rapport PDF sous 24h à cette adresse.
+                    </div>
                     <div class="pc-buttons">
                         <button class="btn-paypal" onclick="window.open('https://paypal.me/NolanBunet/20EUR','_blank')">
                             🅿️ Payer 20 € via PayPal
                         </button>
                     </div>
-                    <div class="pc-note">Paiement 100% sécurisé · Remboursé si document incompatible</div>
+                    <div class="pc-note">Paiement 100% sécurisé · Remboursé si document incompatible · bunetnolan@gmail.com</div>
                 </div>
 
                 <div class="garantie">✓ Si l'analyse ne peut pas être réalisée, vous êtes remboursé intégralement.</div>
@@ -585,10 +605,12 @@ html_content = f"""
 
                 if (response.ok) {{
                     document.getElementById('form-section').style.display = 'none';
+                    const confirmEl = document.getElementById('confirm-email');
+                    if (confirmEl) confirmEl.textContent = email;
                     const confirm = document.getElementById('paymentConfirm');
                     confirm.classList.add('visible');
                     confirm.scrollIntoView({{ behavior: 'smooth', block: 'center' }});
-                    showToast('✅ Demande envoyée ! Passez au paiement.');
+                    showToast('✅ Demande envoyée ! Indiquez votre email dans la note PayPal.');
                 }} else {{
                     throw new Error('Erreur serveur ' + response.status);
                 }}
