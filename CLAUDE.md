@@ -3,6 +3,7 @@
 **Projet :** BailSafe — audit anti-fraude documentaire pour bailleurs (39 € TTC/dossier).
 **Auteur :** Nolan Bunet — bunetnolan@gmail.com — Sainte-Rose, Guadeloupe.
 **Repo :** https://github.com/bunetnolan-netizen/BailSafe (branche `main`).
+**Vitrine en ligne :** https://bailsafe.netlify.app/
 
 Pour le détail technique exhaustif (dataclasses, fonctions, sections HTML, scoring
 forensique...), voir `NOLAN_BAILSAFE_contexte.md`. Pour l'hébergement, le flux de commande
@@ -12,8 +13,8 @@ d'entrée résumé + le journal de bord des sessions.
 ## Stack
 
 - Python + Streamlit (`app_expert.py` = interface d'analyse, protégée par mot de passe)
-- `index.html` = vitrine standalone HTML/CSS/JS (à déployer sur Netlify, ne pas confondre
-  avec `archive/app_vitrine.py` qui est **archivé, ne plus utiliser**)
+- `index.html` = vitrine standalone HTML/CSS/JS, **en ligne sur Netlify** (https://bailsafe.netlify.app/),
+  ne pas confondre avec `archive/app_vitrine.py` qui est **archivé, ne plus utiliser**
 - ReportLab pour le rapport PDF, pdfplumber/pikepdf pour l'extraction/analyse PDF
 - Secrets via `os.getenv()` puis `st.secrets` (jamais commités — voir `secrets.toml.example`)
 
@@ -23,9 +24,9 @@ d'entrée résumé + le journal de bord des sessions.
   connecté à `origin` (GitHub). Claude peut committer et pousser directement sans redemander
   à chaque fois, sauf pour des opérations destructives (force-push, réécriture d'historique,
   suppression de branche) qui restent à confirmer avec Nolan au préalable.
-- La vitrine publique (`index.html`) est déployée sur **Netlify** (Nolan l'a confirmé le
-  4 juillet 2026 — pas encore de migration à faire, contrairement à ce qu'indiquaient les
-  anciennes notes). Penser à noter l'URL Netlify ici dès qu'elle est connue.
+- La vitrine publique (`index.html`) est déployée sur **Netlify** : https://bailsafe.netlify.app/
+  (confirmé par Nolan le 4 juillet 2026 — pas de migration à faire, contrairement à ce
+  qu'indiquaient les anciennes notes de `BAILSAFE_CONTEXTE.md`/`NOLAN_BAILSAFE_contexte.md`).
 - Les TODOs bloquants (ID Formspree placeholder, URL Render, mot de passe expert...) sont
   listés dans `BAILSAFE_CONTEXTE.md` — ne pas les inventer, demander à Nolan les valeurs réelles.
 - RGPD : conservation 30 jours max, aucune décision automatisée (art. 22), information
@@ -60,10 +61,9 @@ date, ce qui a été fait, ce qui reste en TODO manuel pour Nolan. Garde chaque 
   la traçabilité sans perdre l'état local. Nettoyage au passage : suppression d'un fichier
   `download` (upload accidentel) et d'un `app_vitrine.py` racine obsolète (doublon de la
   version archivée). Premier push effectué avec succès.
-- Confirmation de Nolan : la vitrine (`index.html`) est déjà en ligne sur **Netlify** — la
-  migration n'est plus un TODO.
+- Confirmation de Nolan : la vitrine (`index.html`) est en ligne sur **Netlify** —
+  https://bailsafe.netlify.app/ — la migration n'est plus un TODO.
 
 **TODO manuels restants (hors de portée de l'agent) :**
 - Créer un vrai formulaire Formspree (ou alternative hébergée UE) et remplacer l'ID placeholder.
 - Finaliser le déploiement Render et renseigner son URL dans `BAILSAFE_CONTEXTE.md`.
-- Noter l'URL Netlify de la vitrine ici une fois confirmée.

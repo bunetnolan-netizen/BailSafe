@@ -29,18 +29,17 @@ Service d'audit anti-fraude documentaire pour propriétaires bailleurs. Le clien
 | Fichier | Rôle | Hébergement |
 |---|---|---|
 | `app_expert.py` | Interface d'analyse pour Nolan | Render (BailSafe-expert) |
-| `index.html` | Vitrine standalone — **version à déployer** | À déployer sur Netlify |
+| `index.html` | Vitrine standalone — **version en ligne** | Netlify — https://bailsafe.netlify.app/ |
 | `MODELE_INFORMATION_CANDIDAT.md` | Modèle d'info RGPD art. 13/14 à remettre au candidat | — |
-| `archive/app_vitrine.py` | Ancienne landing page Streamlit — **archivée, ne plus utiliser** | bail-safe.streamlit.app (tant que non redéployé) |
+| `archive/app_vitrine.py` | Ancienne landing page Streamlit — **archivée, ne plus utiliser** | — (remplacée par `index.html`) |
 
 ---
 
 ## Hébergements
 
 ### Vitrine publique (landing page)
-- **Actuel :** https://bail-safe.streamlit.app — hébergé sur Streamlit Cloud
-- **Problème :** interface Streamlit visible autour de la page, pas plein écran
-- **À migrer vers :** `index.html` standalone sur Netlify (fichier prêt)
+- **Actuel :** https://bailsafe.netlify.app/ — `index.html` standalone déployé sur Netlify (confirmé 4 juillet 2026)
+- **Ancienne version :** https://bail-safe.streamlit.app (Streamlit Cloud) — remplacée, ne plus utiliser comme lien principal
 
 ### App Expert (interface d'analyse)
 - **Hébergeur :** Render
@@ -55,16 +54,11 @@ Service d'audit anti-fraude documentaire pour propriétaires bailleurs. Le clien
 - **Repo :** https://github.com/bunetnolan-netizen/BailSafe
 - **Branche principale :** `main`
 
-### Futur — Netlify (vitrine standalone)
-- Déployer le fichier `index.html` sur netlify.com
-- Drag & drop du fichier → URL générée en 30 secondes
-- Option : connecter directement au repo GitHub pour déploiement automatique sur push
-
 ---
 
 ## Flux de commande (côté client)
 
-1. Client arrive sur la vitrine (Netlify ou Streamlit)
+1. Client arrive sur la vitrine (https://bailsafe.netlify.app/)
 2. Remplit le formulaire → envoi via **Formspree** → Nolan reçoit un email
 3. Client est redirigé vers le bouton PayPal pour payer 39 €
 4. Nolan reçoit le paiement PayPal → récupère le PDF du client par email
@@ -102,7 +96,7 @@ Service d'audit anti-fraude documentaire pour propriétaires bailleurs. Le clien
 
 | Canal | Statut | Rôle |
 |---|---|---|
-| Vitrine web | ✅ En ligne (Streamlit) / 🔄 Migration Netlify | Acquisition principale |
+| Vitrine web | ✅ En ligne sur Netlify (https://bailsafe.netlify.app/) | Acquisition principale |
 | Email direct | ✅ bunetnolan@gmail.com | Fallback commande |
 | Facebook | ✅ Actif | Communauté / organique |
 | LeBonCoin | ⚠️ Retiré du CTA principal | Garde en lien discret |
@@ -170,5 +164,5 @@ Service d'audit anti-fraude documentaire pour propriétaires bailleurs. Le clien
 | PayPal | paypal.me/NolanBunet/39EUR |
 | GitHub | github.com/bunetnolan-netizen/BailSafe |
 | Facebook | https://www.facebook.com/share/1KKBK1mfpV/ |
-| Vitrine actuelle | https://bail-safe.streamlit.app |
+| Vitrine actuelle | https://bailsafe.netlify.app/ |
 | App expert | https://[À COMPLÉTER].onrender.com |
