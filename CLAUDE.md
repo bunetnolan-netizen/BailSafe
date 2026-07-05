@@ -80,8 +80,45 @@ date, ce qui a été fait, ce qui reste en TODO manuel pour Nolan. Garde chaque 
   Formspree ; l'avertissement Schrems II n'a plus lieu d'être (plus de transfert hors UE).
 
 **TODO manuels restants (hors de portée de l'agent) :**
-- Créer un compte Brevo (brevo.com), vérifier un email expéditeur (Senders → Add a sender),
-  générer une clé API (SMTP & API → API Keys), puis dans Netlify → Site configuration →
-  Environment variables, ajouter `BREVO_API_KEY` et `BREVO_SENDER_EMAIL` (l'email vérifié
-  ci-dessus). Sans ça, le formulaire de commande retournera une erreur.
 - Finaliser le déploiement Render et renseigner son URL dans `BAILSAFE_CONTEXTE.md`.
+
+---
+
+### 5 juillet 2026
+
+- **Compte Brevo créé et configuré** : sender vérifié, `BREVO_API_KEY`/`BREVO_SENDER_EMAIL`
+  posés dans Netlify. Formulaire de commande testé de bout en bout (site → fonction Netlify →
+  Brevo → boîte Gmail) — fonctionnel.
+- **UX** : incohérence chiffrée corrigée (18 mois d'expulsion partout), email de confirmation
+  client ajouté (récap étapes + PayPal + email de Nolan, filet de sécurité si le client ferme
+  l'onglet), nuance sur "déductible selon régime fiscal" (au lieu de "100% déductible").
+- **Repositionnement "high ticket"** : passage d'un prix unique (39 €) à 3 formules —
+  Essentiel (59 €, 1 document), Sécurisé (129 €, 2 documents, cohérence croisée, mis en avant),
+  Dossier Complet (229 €, jusqu'à 4 documents, traitement prioritaire). Nouveau champ
+  "Formule" dans le formulaire, montant PayPal et emails (notification + confirmation)
+  calculés dynamiquement selon la formule choisie. Couleur CTA dédiée (orange chaud) distincte
+  du rouge "danger forensique", halo pulsant sur le bouton final, garantie remboursement
+  remontée juste sous le premier bouton.
+  **Important — non fait** : `app_expert.py` ne sait analyser qu'un seul PDF à la fois.
+  Les formules Sécurisé/Dossier Complet nécessitent que Nolan passe chaque document
+  séparément dans l'outil et compile lui-même la cohérence entre documents pour l'instant —
+  automatiser cette analyse croisée est un chantier à part, pas fait dans cette session.
+- **Anomalie détectée (à surveiller, pas un bug de code)** : le 2e email d'une paire
+  (confirmation client) part bien de la fonction Netlify et Brevo répond succès, mais reste
+  en statut **"Delayed"** dans Brevo → Transactional → Email Activity. Cause probable : compte
+  Brevo créé le jour même, période de montée en confiance/anti-abus classique chez les ESP
+  pour un compte tout neuf. Devrait se résorber sous 24-48h sans action. À revérifier ; si
+  toujours bloqué après 48h, contacter le support Brevo.
+- Correction d'un bug d'encodage que j'avais moi-même introduit en modifiant
+  `BAILSAFE_CONTEXTE.md` via PowerShell `Get-Content`/`Set-Content` (mojibake sur les
+  accents) — restauré depuis git puis corrigé avec l'outil d'édition.
+- **Alerte Render à vérifier** : email reçu de Render le 5 juillet à 12h21 — *"Server failure
+  detected on BailSafe-expert"*. Pas d'investigation plus poussée faite dans cette session
+  (hors sujet du moment) — Nolan à vérifier que l'app expert tourne toujours normalement.
+
+**TODO manuels restants :**
+- Vérifier le statut Brevo (Delayed → Delivered) dans les 24-48h.
+- Vérifier l'alerte de panne Render du 5 juillet et confirmer que `app_expert.py` fonctionne.
+- Finaliser le déploiement Render et renseigner son URL dans `BAILSAFE_CONTEXTE.md`.
+- Décider si/quand automatiser l'analyse multi-documents dans `app_expert.py` pour les
+  formules Sécurisé et Dossier Complet (actuellement traitement manuel par Nolan).
