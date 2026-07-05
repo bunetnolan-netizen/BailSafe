@@ -29,10 +29,15 @@ d'entrée résumé + le journal de bord des sessions.
   — **connectée au dépôt GitHub pour l'auto-déploiement** (confirmé par Nolan le 4 juillet
   2026). Chaque push sur `main` redéploie automatiquement la vitrine, comme Render pour
   `app_expert.py`. Plus besoin de redéployer manuellement ni de vérifier ce point.
-- Les TODOs bloquants (ID Formspree placeholder, URL Render, mot de passe expert...) sont
-  listés dans `BAILSAFE_CONTEXTE.md` — ne pas les inventer, demander à Nolan les valeurs réelles.
+- Les TODOs bloquants (URL Render, mot de passe expert...) sont listés dans
+  `BAILSAFE_CONTEXTE.md` — ne pas les inventer, demander à Nolan les valeurs réelles.
 - RGPD : conservation 30 jours max, aucune décision automatisée (art. 22), information
   candidat obligatoire (art. 13/14) — voir `MODELE_INFORMATION_CANDIDAT.md`.
+- **Formulaire de commande : Brevo (UE, Paris) via fonction serverless Netlify**
+  (`netlify/functions/order.js`), plus Formspree. Variables d'environnement requises dans
+  Netlify (Site configuration → Environment variables) : `BREVO_API_KEY`, `BREVO_SENDER_EMAIL`
+  (adresse vérifiée comme expéditeur dans Brevo), `BREVO_SENDER_NAME` (optionnel, "BailSafe"
+  par défaut), `BAILSAFE_NOTIF_EMAIL` (optionnel, sinon bunetnolan@gmail.com par défaut).
 
 ## Journal de session
 
@@ -66,7 +71,17 @@ date, ce qui a été fait, ce qui reste en TODO manuel pour Nolan. Garde chaque 
 - Confirmation de Nolan : la vitrine (`index.html`) est en ligne sur **Netlify** —
   https://bail-safe.netlify.app/ — connectée à GitHub pour l'auto-déploiement, comme Render.
   Les deux hébergements se redéploient automatiquement à chaque push, sans action manuelle.
+- Correction du domaine placeholder dans les balises `canonical`/`og:url` d'`index.html`
+  (remplacé par l'URL Netlify réelle).
+- **Remplacement de Formspree par Brevo (UE)** pour le formulaire de commande : nouvelle
+  fonction serverless `netlify/functions/order.js` (relaie vers l'API transactionnelle Brevo,
+  clé API jamais exposée côté client), `netlify.toml` ajouté pour déclarer le dossier de
+  fonctions. `index.html` mis à jour pour poster vers `/.netlify/functions/order` au lieu de
+  Formspree ; l'avertissement Schrems II n'a plus lieu d'être (plus de transfert hors UE).
 
 **TODO manuels restants (hors de portée de l'agent) :**
-- Créer un vrai formulaire Formspree (ou alternative hébergée UE) et remplacer l'ID placeholder.
+- Créer un compte Brevo (brevo.com), vérifier un email expéditeur (Senders → Add a sender),
+  générer une clé API (SMTP & API → API Keys), puis dans Netlify → Site configuration →
+  Environment variables, ajouter `BREVO_API_KEY` et `BREVO_SENDER_EMAIL` (l'email vérifié
+  ci-dessus). Sans ça, le formulaire de commande retournera une erreur.
 - Finaliser le déploiement Render et renseigner son URL dans `BAILSAFE_CONTEXTE.md`.

@@ -21,7 +21,7 @@ Service d'audit anti-fraude documentaire pour propriétaires bailleurs. Le clien
 - **Framework :** Streamlit (app_vitrine + app_expert)
 - **Génération rapport :** ReportLab (PDF)
 - **Extraction PDF :** pdfplumber
-- **Formulaire de commande :** Formspree
+- **Formulaire de commande :** fonction serverless Netlify (`netlify/functions/order.js`) → Brevo (UE)
 - **Vitrine standalone :** HTML/CSS/JS pur (index.html)
 
 ### Fichiers principaux
@@ -59,7 +59,7 @@ Service d'audit anti-fraude documentaire pour propriétaires bailleurs. Le clien
 ## Flux de commande (côté client)
 
 1. Client arrive sur la vitrine (https://bail-safe.netlify.app/)
-2. Remplit le formulaire → envoi via **Formspree** → Nolan reçoit un email
+2. Remplit le formulaire → envoi via la fonction Netlify → **Brevo** → Nolan reçoit un email
 3. Client est redirigé vers le bouton PayPal pour payer 39 €
 4. Nolan reçoit le paiement PayPal → récupère le PDF du client par email
 5. Nolan dépose le PDF dans **app_expert** → analyse automatique
@@ -84,7 +84,8 @@ Service d'audit anti-fraude documentaire pour propriétaires bailleurs. Le clien
 
 | Quoi | Où | Comment |
 |---|---|---|
-| ID Formspree | `index.html` ligne ~380 | Créer un formulaire sur formspree.io → copier l'URL |
+| BREVO_API_KEY | Netlify → Environment Variables | Créer un compte sur brevo.com → SMTP & API → API Keys |
+| BREVO_SENDER_EMAIL | Netlify → Environment Variables | Vérifier un email expéditeur dans Brevo → Senders → Add a sender |
 | EXPERT_PASSWORD | Render → Environment Variables | Choisir un mot de passe fort, le noter |
 | EMAIL_EXPEDITEUR | Render → Environment Variables | Ex : bunetnolan@gmail.com |
 | MOT_DE_PASSE_EMAIL | Render → Environment Variables | App Password Gmail (Google → Sécurité → Mots de passe des applications) |
@@ -150,7 +151,27 @@ Service d'audit anti-fraude documentaire pour propriétaires bailleurs. Le clien
   Stripe de test) — déplacé, pas supprimé, pour rester réversible.
 
 **TODO restants (nécessitent une action manuelle de Nolan, hors de portée d'une correction de code) :**
-- Créer un vrai formulaire Formspree (ou son alternative UE) et remplacer l'ID placeholder
+- Finaliser le déploiement Render et renseigner son URL
+- Décider si `archive/app_vitrine.py` doit être retiré du dépôt GitHub distant
+
+---
+
+## Corrections apportées (session 5 juillet 2026)
+
+- **RGPD NC#2 résolu** : Formspree (hébergé US) remplacé par **Brevo** (hébergeur français,
+  Paris) pour le formulaire de commande. Nouvelle fonction serverless
+  `netlify/functions/order.js` qui relaie la commande vers l'API transactionnelle Brevo côté
+  serveur — la clé API n'est jamais exposée dans le HTML/JS public, contrairement à un ID
+  Formspree en dur. `netlify.toml` ajouté pour déclarer le dossier de fonctions.
+- Domaine placeholder (`REMPLACE_PAR_TON_DOMAINE.fr`) dans les balises `canonical`/`og:url`
+  d'`index.html` corrigé avec l'URL réelle (https://bail-safe.netlify.app/).
+- URL Netlify de la vitrine confirmée et documentée partout : **https://bail-safe.netlify.app/**
+  (attention, ne pas confondre avec `bailsafe.netlify.app` sans tiret, qui n'est pas le site).
+
+**TODO restants :**
+- Créer un compte Brevo, vérifier un email expéditeur, générer une clé API, puis renseigner
+  `BREVO_API_KEY` et `BREVO_SENDER_EMAIL` dans Netlify → Environment Variables (voir tableau
+  plus haut). Le formulaire de commande ne peut pas envoyer d'email tant que ce n'est pas fait.
 - Finaliser le déploiement Render et renseigner son URL
 - Décider si `archive/app_vitrine.py` doit être retiré du dépôt GitHub distant
 

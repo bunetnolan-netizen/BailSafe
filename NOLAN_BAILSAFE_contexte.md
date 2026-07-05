@@ -295,8 +295,9 @@ Gmail App Password : Compte Google → Sécurité → Validation 2 étapes → M
 
 - Un document **imprimé puis re-scanné** après modification échappe à l'analyse (pas de métadonnées numériques)
 - BailSafe fournit un **avis technique consultatif**, pas une garantie juridique
-- L'ID Formspree est un **placeholder** à remplacer (nécessite la création d'un compte —
-  vérifier l'hébergement UE avant de le faire, cf. avertissement Schrems II dans `index.html`)
+- Le formulaire de commande passe par Brevo (UE) via `netlify/functions/order.js` — nécessite
+  `BREVO_API_KEY` et `BREVO_SENDER_EMAIL` configurés dans Netlify (voir `CLAUDE.md`), sans
+  quoi le formulaire renvoie une erreur
 - `app_vitrine.py` (Stripe test inclus) est **archivé** dans `archive/`, ne plus l'utiliser pour de
   nouveaux déploiements — `index.html` est la vitrine de référence
 
@@ -323,7 +324,7 @@ streamlit run app_expert.py --server.port 8502
 
 ## Points d'évolution identifiés
 
-- Remplacer l'ID Formspree placeholder (privilégier un prestataire hébergé UE, cf. Limites connues)
+- Configurer `BREVO_API_KEY` et `BREVO_SENDER_EMAIL` dans Netlify (cf. Limites connues)
 - Finaliser le déploiement Render et renseigner son URL dans `BAILSAFE_CONTEXTE.md`
 - Décider si `archive/app_vitrine.py` doit être retiré du dépôt GitHub distant
 - Possibilité d'intégrer n8n pour automatiser la réception + envoi du rapport

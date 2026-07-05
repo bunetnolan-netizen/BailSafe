@@ -10,14 +10,13 @@
     <meta name="description" content="BailSafe détecte les fiches de paie et avis d'imposition falsifiés grâce à une analyse forensique de PDF (empreinte SHA-256, métadonnées, cohérence financière). Rapport sous 24h, 39 € TTC, pour propriétaires bailleurs.">
     <meta name="robots" content="index, follow">
 
-    <!-- ⚠️ À REMPLACER par l'URL réelle une fois le nom de domaine définitif choisi -->
-    <link rel="canonical" href="https://REMPLACE_PAR_TON_DOMAINE.fr/">
+    <link rel="canonical" href="https://bail-safe.netlify.app/">
     <meta property="og:type" content="website">
     <meta property="og:locale" content="fr_FR">
     <meta property="og:site_name" content="BailSafe">
     <meta property="og:title" content="BailSafe | Détection de fraude documentaire pour bailleurs">
     <meta property="og:description" content="Analyse forensique de PDF (fiche de paie, avis d'imposition) pour détecter les faux dossiers de location. Rapport sous 24h, 39 € TTC.">
-    <meta property="og:url" content="https://REMPLACE_PAR_TON_DOMAINE.fr/">
+    <meta property="og:url" content="https://bail-safe.netlify.app/">
     <!-- og:image à ajouter une fois un visuel (capture d'écran ou logo) hébergé -->
     <meta name="twitter:card" content="summary">
     <meta name="twitter:title" content="BailSafe | Détection de fraude documentaire pour bailleurs">
@@ -643,17 +642,10 @@
 
     <script>
         // ──────────────────────────────────────────────────────────
-        // CONFIGURATION — à remplir avant déploiement
-        // Créer un formulaire sur https://formspree.io et coller l'URL ici
-        //
-        // ⚠️ RGPD (Schrems II, art. 44-49) : Formspree est hébergé aux États-Unis.
-        // Un transfert de données personnelles (nom, email, tél., type de document) vers
-        // les US sans mécanisme de protection adéquat est illégal depuis l'invalidation
-        // du Privacy Shield. Avant de configurer l'ID ci-dessous, vérifier l'une de ces
-        // options : (a) signer un DPA + Clauses Contractuelles Types avec Formspree,
-        // (b) activer une offre de traitement UE si Formspree en propose une, ou
-        // (c) remplacer Formspree par un service hébergé dans l'UE (ex. Brevo, EmailJS EU).
-        const FORMSPREE_URL = "https://formspree.io/f/REMPLACE_PAR_TON_ID_FORMSPREE";
+        // Formulaire de commande : envoyé à la fonction serverless Netlify
+        // netlify/functions/order.js, qui relaie vers Brevo (UE, Paris) —
+        // voir CLAUDE.md pour la configuration des variables d'environnement.
+        const ORDER_ENDPOINT = "/.netlify/functions/order";
         // ──────────────────────────────────────────────────────────
 
         function showToast(msg, isError = false) {
@@ -754,18 +746,13 @@
                 firstInvalid.focus({ preventScroll: true });
                 return;
             }
-            if (FORMSPREE_URL.includes('REMPLACE_PAR_TON_ID')) {
-                showToast('❌ Formulaire non configuré — contacte bunetnolan@gmail.com', true);
-                return;
-            }
-
             const btn = document.getElementById('submitBtn');
             const txt = document.getElementById('submitText');
             btn.disabled = true;
             txt.textContent = '⏳ Envoi en cours...';
 
             try {
-                const response = await fetch(FORMSPREE_URL, {
+                const response = await fetch(ORDER_ENDPOINT, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
                     body: JSON.stringify({
@@ -776,9 +763,7 @@
                         message: message || 'Aucune précision',
                         gdpr_consent: 'Accepté',
                         gdpr_candidat_informe: 'Confirmé',
-                        retractation_renoncement: 'Confirmé',
-                        _subject: '🛡️ Nouvelle commande BailSafe — ' + name,
-                        _replyto: email
+                        retractation_renoncement: 'Confirmé'
                     })
                 });
 
