@@ -45,6 +45,7 @@
             --stamp: #A23A2C; --stamp-dark: #7E2C21; --stamp-hover: #BD4636; --stamp-soft: #F4E1DD;
             --seal: #8A6D22; --seal-light: #C9A94A; --seal-soft: #F1E7CB;
             --verified: #3F6B4F; --verified-light: #7BBF95; --verified-dark: #2C4F38; --verified-soft: #E1EBE2;
+            --cta: #D9631E; --cta-hover: #F17A2E; --cta-dark: #A84B17;
             --cyan: #2C6E74;
             --line: #D2C7A8;
             --text: #241F16; --text-muted: #6B6152;
@@ -64,8 +65,8 @@
         .nav-links a { color: var(--text-on-ink-muted); text-decoration: none; font-size: 14px; font-weight: 500; transition: color 0.2s; }
         .nav-links a:hover { color: var(--text-on-ink); }
         @media (min-width: 768px) { .nav-links { display: flex; } }
-        .nav-cta { background: var(--stamp); color: var(--text-on-ink); padding: 10px 20px; border-radius: 6px; font-weight: 700; font-size: 13px; border: none; cursor: pointer; transition: background 0.2s; }
-        .nav-cta:hover { background: var(--stamp-hover); }
+        .nav-cta { background: var(--cta); color: var(--text-on-ink); padding: 10px 20px; border-radius: 6px; font-weight: 700; font-size: 13px; border: none; cursor: pointer; transition: background 0.2s; }
+        .nav-cta:hover { background: var(--cta-hover); }
 
         .hero { background-color: var(--ink); background-image: radial-gradient(rgba(201,169,74,0.14) 1px, transparent 1.5px); background-size: 26px 26px; padding: 120px 24px 80px; text-align: center; position: relative; overflow: hidden; }
         .hero::before { content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 1000px; height: 500px; background: radial-gradient(ellipse, rgba(162, 58, 44, 0.18), transparent 70%); pointer-events: none; }
@@ -76,8 +77,9 @@
         .h-sub { font-size: 1.1rem; color: var(--text-on-ink-muted); max-width: 650px; margin: 0 auto 32px; line-height: 1.7; }
         .h-buttons { display: flex; flex-direction: column; gap: 12px; justify-content: center; margin-bottom: 20px; }
         @media (min-width: 640px) { .h-buttons { flex-direction: row; } }
-        .btn-primary { background: var(--stamp); color: var(--text-on-ink); padding: 14px 28px; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 12px rgba(162, 58, 44, 0.3); font-size: 16px; }
-        .btn-primary:hover { background: var(--stamp-hover); transform: translateY(-2px); box-shadow: 0 8px 20px rgba(162, 58, 44, 0.4); }
+        .btn-primary { background: var(--cta); color: var(--text-on-ink); padding: 14px 28px; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 12px rgba(217, 99, 30, 0.35); font-size: 16px; }
+        .btn-primary:hover { background: var(--cta-hover); transform: translateY(-2px); box-shadow: 0 8px 20px rgba(217, 99, 30, 0.45); }
+        .h-riskfree { margin-top: 14px; font-size: 13px; color: var(--verified-light); }
         .btn-secondary { background: transparent; color: var(--seal-light); border: 1px solid rgba(201,169,74,0.4); padding: 14px 28px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
         .btn-secondary:hover { border-color: rgba(201,169,74,0.7); background: rgba(201,169,74,0.06); }
         .h-proof { display: flex; gap: 30px; justify-content: center; flex-wrap: wrap; font-size: 13px; color: var(--text-on-ink-muted); }
@@ -195,8 +197,8 @@
         .gdpr-checkbox.candidat label { color: var(--text-on-ink-muted); }
         .gdpr-checkbox.field-error { border-color: var(--stamp); box-shadow: 0 0 0 3px rgba(162,58,44,0.18); }
 
-        .btn-form-submit { width: 100%; background: var(--stamp); color: var(--text-on-ink); padding: 15px; border: none; border-radius: 8px; font-weight: 800; font-size: 15px; cursor: pointer; margin-top: 6px; box-shadow: 0 4px 12px rgba(162,58,44,0.3); transition: all 0.2s; }
-        .btn-form-submit:hover:not(:disabled) { background: var(--stamp-hover); transform: translateY(-2px); }
+        .btn-form-submit { width: 100%; background: var(--cta); color: var(--text-on-ink); padding: 15px; border: none; border-radius: 8px; font-weight: 800; font-size: 15px; cursor: pointer; margin-top: 6px; box-shadow: 0 4px 12px rgba(217,99,30,0.3); transition: all 0.2s; }
+        .btn-form-submit:hover:not(:disabled) { background: var(--cta-hover); transform: translateY(-2px); }
         .btn-form-submit:disabled { opacity: 0.6; cursor: not-allowed; }
 
         .payment-confirm { display: none; background: var(--ink); border: 1px solid rgba(63,107,79,0.35); border-radius: 10px; padding: 32px 24px; text-align: center; margin-top: 16px; }
@@ -240,8 +242,12 @@
         .anchor-num.win { color: var(--verified-light); }
         .anchor-label { font-size: 12.5px; color: var(--text-on-ink-muted); margin-top: 8px; max-width: 170px; margin-left: auto; margin-right: auto; }
         .anchor-vs { font-family: 'IBM Plex Mono', monospace; color: var(--text-on-ink-muted); font-size: 13px; }
-        .closing-cta-btn { background: var(--stamp); color: var(--text-on-ink); border: none; padding: 18px 40px; border-radius: 8px; font-weight: 700; font-size: 17px; cursor: pointer; transition: all 0.2s; box-shadow: 0 8px 24px rgba(162,58,44,0.35); }
-        .closing-cta-btn:hover { background: var(--stamp-hover); transform: translateY(-2px); box-shadow: 0 12px 28px rgba(162,58,44,0.45); }
+        .closing-cta-btn { background: var(--cta); color: var(--text-on-ink); border: none; padding: 18px 40px; border-radius: 8px; font-weight: 700; font-size: 17px; cursor: pointer; transition: all 0.2s; animation: cta-pulse 2.4s ease-in-out infinite; }
+        .closing-cta-btn:hover { background: var(--cta-hover); transform: translateY(-2px); box-shadow: 0 12px 28px rgba(217,99,30,0.5); animation: none; }
+        @keyframes cta-pulse {
+            0%, 100% { box-shadow: 0 8px 24px rgba(217,99,30,0.35), 0 0 0 0 rgba(217,99,30,0.4); }
+            50% { box-shadow: 0 8px 24px rgba(217,99,30,0.45), 0 0 0 10px rgba(217,99,30,0); }
+        }
         .closing-trust { margin-top: 20px; font-size: 12.5px; color: var(--text-on-ink-muted); }
 
         .skip-link { position: absolute; top: -100px; left: 12px; z-index: 100; background: var(--seal-light); color: var(--ink); font-weight: 700; padding: 10px 16px; border-radius: 0 0 6px 6px; text-decoration: none; transition: top 0.2s; }
@@ -255,6 +261,7 @@
         @media (prefers-reduced-motion: reduce) {
             .reveal { opacity: 1; transform: none; transition: none; }
             .btn-primary:hover, .btn-form-submit:hover:not(:disabled), .closing-cta-btn:hover, .pain-card:hover, .benefit-card:hover { transform: none; }
+            .closing-cta-btn { animation: none; box-shadow: 0 8px 24px rgba(217,99,30,0.35); }
         }
     </style>
     <noscript><style>.reveal { opacity: 1 !important; transform: none !important; }</style></noscript>
@@ -291,6 +298,7 @@
                 <button class="btn-primary" onclick="document.getElementById('form-section').scrollIntoView({behavior:'smooth'})">Analyser un dossier maintenant (39 €)</button>
                 <button class="btn-secondary" onclick="document.getElementById('expert').scrollIntoView({behavior:'smooth'})">Voir un exemple de rapport</button>
             </div>
+            <div class="h-riskfree">✓ Remboursé intégralement si l'analyse ne peut pas être réalisée — zéro risque.</div>
             <div class="h-proof">
                 <div><span>⚡ Résultat sous 24h</span></div>
                 <div><span>📊 Déductible selon votre régime fiscal</span></div>
