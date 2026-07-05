@@ -99,13 +99,10 @@ exports.handler = async (event) => {
         `
       });
       if (!confirmRes.ok) {
-        const confirmErrText = await confirmRes.text();
-        console.error('Erreur Brevo (confirmation client):', confirmRes.status, confirmErrText);
-        return { statusCode: 200, body: JSON.stringify({ ok: true, debugConfirmStatus: confirmRes.status, debugConfirmBody: confirmErrText }) };
+        console.error('Erreur Brevo (confirmation client):', confirmRes.status, await confirmRes.text());
       }
     } catch (err) {
       console.error('Erreur envoi confirmation client:', err);
-      return { statusCode: 200, body: JSON.stringify({ ok: true, debugConfirmError: String(err) }) };
     }
 
     return { statusCode: 200, body: JSON.stringify({ ok: true }) };
