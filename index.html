@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="fr" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <title>BailSafe | Détection de Fraude Documentaire — Analyse Forensique</title>
+    <meta name="description" content="BailSafe détecte les fiches de paie et avis d'imposition falsifiés grâce à une analyse forensique de PDF (empreinte SHA-256, métadonnées, cohérence financière). Rapport sous 24h, 39 € TTC, pour propriétaires bailleurs.">
+    <meta name="robots" content="index, follow">
+
+    <!-- ⚠️ À REMPLACER par l'URL réelle une fois le nom de domaine définitif choisi -->
+    <link rel="canonical" href="https://REMPLACE_PAR_TON_DOMAINE.fr/">
+    <meta property="og:type" content="website">
+    <meta property="og:locale" content="fr_FR">
+    <meta property="og:site_name" content="BailSafe">
+    <meta property="og:title" content="BailSafe | Détection de fraude documentaire pour bailleurs">
+    <meta property="og:description" content="Analyse forensique de PDF (fiche de paie, avis d'imposition) pour détecter les faux dossiers de location. Rapport sous 24h, 39 € TTC.">
+    <meta property="og:url" content="https://REMPLACE_PAR_TON_DOMAINE.fr/">
+    <!-- og:image à ajouter une fois un visuel (capture d'écran ou logo) hébergé -->
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="BailSafe | Détection de fraude documentaire pour bailleurs">
+    <meta name="twitter:description" content="Analyse forensique de PDF pour détecter les faux dossiers de location. Rapport sous 24h, 39 € TTC.">
+
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='5' fill='%231C2B29'/%3E%3Cpath d='M12 3.5 L18.5 6 V11.5 C18.5 15.5 15.8 18.7 12 20.2 C8.2 18.7 5.5 15.5 5.5 11.5 V6 Z' fill='%23C9A94A'/%3E%3C/svg%3E">
+
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "Service",
+        "name": "BailSafe — Audit anti-fraude documentaire",
+        "description": "Analyse forensique de documents PDF (fiche de paie, avis d'imposition) pour détecter les falsifications, à destination des propriétaires bailleurs.",
+        "provider": { "@type": "Person", "name": "Nolan Bunet", "email": "bunetnolan@gmail.com" },
+        "areaServed": "FR",
+        "offers": { "@type": "Offer", "price": "39", "priceCurrency": "EUR" }
+    }
+    </script>
+
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --paper: #F1ECDD; --paper-2: #E8E0C8; --card: #FAF7EE;
+            --ink: #1C2B29; --ink-2: #24413E;
+            --stamp: #A23A2C; --stamp-dark: #7E2C21; --stamp-hover: #BD4636; --stamp-soft: #F4E1DD;
+            --seal: #8A6D22; --seal-light: #C9A94A; --seal-soft: #F1E7CB;
+            --verified: #3F6B4F; --verified-light: #7BBF95; --verified-dark: #2C4F38; --verified-soft: #E1EBE2;
+            --cyan: #2C6E74;
+            --line: #D2C7A8;
+            --text: #241F16; --text-muted: #6B6152;
+            --text-on-ink: #EDE7D6; --text-on-ink-muted: #A9B8B2;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'IBM Plex Sans', sans-serif; background: var(--paper); color: var(--text); line-height: 1.6; overflow-x: hidden; }
+        html { scroll-behavior: smooth; }
+        .mono { font-family: 'IBM Plex Mono', 'Courier New', monospace; }
+
+        nav { position: fixed; top: 0; width: 100%; z-index: 50; background: rgba(28, 43, 41, 0.95); backdrop-filter: blur(10px); border-bottom: 1px solid rgba(169, 184, 178, 0.12); }
+        .nav-inner { max-width: 1400px; margin: 0 auto; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 64px; }
+        .logo { display: flex; align-items: center; gap: 8px; color: var(--text-on-ink); font-weight: bold; font-size: 20px; text-decoration: none; }
+        .logo .shield { color: var(--seal-light); font-size: 24px; }
+        .logo .mark { color: var(--seal-light); }
+        .nav-links { display: none; gap: 32px; }
+        .nav-links a { color: var(--text-on-ink-muted); text-decoration: none; font-size: 14px; font-weight: 500; transition: color 0.2s; }
+        .nav-links a:hover { color: var(--text-on-ink); }
+        @media (min-width: 768px) { .nav-links { display: flex; } }
+        .nav-cta { background: var(--stamp); color: var(--text-on-ink); padding: 10px 20px; border-radius: 6px; font-weight: 700; font-size: 13px; border: none; cursor: pointer; transition: background 0.2s; }
+        .nav-cta:hover { background: var(--stamp-hover); }
+
+        .hero { background-color: var(--ink); background-image: radial-gradient(rgba(201,169,74,0.14) 1px, transparent 1.5px); background-size: 26px 26px; padding: 120px 24px 80px; text-align: center; position: relative; overflow: hidden; }
+        .hero::before { content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 1000px; height: 500px; background: radial-gradient(ellipse, rgba(162, 58, 44, 0.18), transparent 70%); pointer-events: none; }
+        .hero-content { max-width: 800px; margin: 0 auto; position: relative; z-index: 1; }
+        .h-badge { font-family: 'IBM Plex Mono', monospace; display: inline-block; background: rgba(201,169,74,0.12); border: 1px solid rgba(201,169,74,0.35); color: var(--seal-light); padding: 8px 16px; border-radius: 20px; font-size: 12px; font-weight: 600; letter-spacing: 1px; margin-bottom: 24px; text-transform: uppercase; }
+        .h-title { font-family: 'IBM Plex Mono', monospace; font-size: clamp(1.9rem, 5.6vw, 3.2rem); font-weight: 700; color: var(--text-on-ink); margin-bottom: 20px; line-height: 1.2; text-wrap: balance; }
+        .h-title .accent { background: linear-gradient(135deg, var(--stamp), var(--seal-light)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .h-sub { font-size: 1.1rem; color: var(--text-on-ink-muted); max-width: 650px; margin: 0 auto 32px; line-height: 1.7; }
+        .h-buttons { display: flex; flex-direction: column; gap: 12px; justify-content: center; margin-bottom: 20px; }
+        @media (min-width: 640px) { .h-buttons { flex-direction: row; } }
+        .btn-primary { background: var(--stamp); color: var(--text-on-ink); padding: 14px 28px; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 12px rgba(162, 58, 44, 0.3); font-size: 16px; }
+        .btn-primary:hover { background: var(--stamp-hover); transform: translateY(-2px); box-shadow: 0 8px 20px rgba(162, 58, 44, 0.4); }
+        .btn-secondary { background: transparent; color: var(--seal-light); border: 1px solid rgba(201,169,74,0.4); padding: 14px 28px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .btn-secondary:hover { border-color: rgba(201,169,74,0.7); background: rgba(201,169,74,0.06); }
+        .h-proof { display: flex; gap: 30px; justify-content: center; flex-wrap: wrap; font-size: 13px; color: var(--text-on-ink-muted); }
+        .h-proof span { color: var(--seal-light); }
+
+        .scanner-demo { max-width: 800px; margin: 0 auto; padding: 0 24px; }
+        .scan-container { background: var(--card); border-radius: 12px; box-shadow: 0 20px 60px rgba(28,43,41,0.14); overflow: hidden; border: 1px solid var(--line); }
+        @keyframes scanline { 0% { top: 0; opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { top: 100%; opacity: 0; } }
+        .scan-header { background: var(--paper-2); padding: 16px 24px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 12px; }
+        .scan-dots { display: flex; gap: 8px; }
+        .dot { width: 12px; height: 12px; border-radius: 50%; }
+        .dot-r { background: var(--stamp); } .dot-y { background: var(--seal-light); } .dot-g { background: var(--verified); }
+        .scan-name { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--text-muted); font-weight: 500; margin-left: 8px; }
+        .scan-body { padding: 24px; position: relative; min-height: 280px; background: var(--card); }
+        .scan-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+        .scan-row:last-child { border-bottom: none; }
+        .scan-label { font-family: 'IBM Plex Mono', monospace; color: var(--text-muted); font-weight: 500; font-size: 12.5px; }
+        .badge-ok { font-family: 'IBM Plex Mono', monospace; background: var(--verified-soft); color: var(--verified-dark); padding: 4px 12px; border-radius: 4px; font-size: 11px; font-weight: 700; }
+        .badge-alert { font-family: 'IBM Plex Mono', monospace; background: var(--stamp-soft); color: var(--stamp-dark); padding: 4px 12px; border-radius: 4px; font-size: 11px; font-weight: 700; }
+        .badge-warn { font-family: 'IBM Plex Mono', monospace; background: var(--seal-soft); color: var(--seal); padding: 4px 12px; border-radius: 4px; font-size: 11px; font-weight: 700; }
+        .scan-score { margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--line); }
+        .score-label { font-family: 'IBM Plex Mono', monospace; display: flex; justify-content: space-between; font-size: 12px; color: var(--text-muted); margin-bottom: 8px; }
+        .score-num { font-family: 'IBM Plex Mono', monospace; font-size: 24px; font-weight: 800; color: var(--stamp); font-variant-numeric: tabular-nums; }
+        .score-bar { height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; }
+        .score-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--seal-light), var(--stamp)); border-radius: 3px; transition: width 2.2s cubic-bezier(0.16, 1, 0.3, 1); }
+        .verdict { margin-top: 16px; padding: 12px 16px; background: var(--stamp-soft); border-left: 3px solid var(--stamp); color: var(--stamp-dark); font-size: 12px; border-radius: 4px; opacity: 0; transition: opacity 0.4s; font-weight: 600; }
+        .scanner-line { position: absolute; left: 0; width: 100%; height: 2px; background: linear-gradient(90deg, transparent, var(--stamp), transparent); box-shadow: 0 0 8px rgba(162,58,44,0.6); animation: scanline 2.8s ease-in-out infinite; z-index: 10; }
+
+        .section { padding: 80px 24px; max-width: 1400px; margin: 0 auto; position: relative; scroll-margin-top: 84px; }
+        /* Bandes de fond pleine largeur (storytelling couleur : rouge tampon = problème, vert = solution) */
+        #pain { background: #F3E5E0; box-shadow: 0 0 0 100vmax #F3E5E0; }
+        #benefits { background: #E7EEE5; box-shadow: 0 0 0 100vmax #E7EEE5; }
+        .s-label { font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; color: var(--seal); font-weight: 700; margin-bottom: 16px; }
+        .s-title { font-family: 'IBM Plex Mono', monospace; font-size: clamp(1.7rem, 4.4vw, 2.6rem); font-weight: 700; color: var(--ink); margin-bottom: 16px; line-height: 1.25; text-wrap: balance; }
+        .s-title .accent { color: var(--stamp); }
+        .s-desc { font-size: 1.05rem; color: var(--text-muted); max-width: 700px; line-height: 1.8; margin-bottom: 32px; }
+
+        .pain-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-top: 32px; }
+        .pain-card { background: var(--card); border: 1px solid var(--line); border-left: 4px solid var(--stamp); border-radius: 12px; padding: 24px; transition: all 0.2s; }
+        .pain-card:hover { transform: translateY(-4px); box-shadow: 0 16px 32px rgba(162,58,44,0.16); }
+        .pain-num { font-family: 'IBM Plex Mono', monospace; font-size: 28px; font-weight: 800; color: var(--seal); margin-bottom: 8px; }
+        .pain-title { font-weight: 700; color: var(--ink); margin-bottom: 8px; font-size: 15px; }
+        .pain-desc { font-size: 14px; color: var(--text-muted); line-height: 1.6; }
+
+        .benefits-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-top: 32px; }
+        .benefit-card { background: var(--card); border: 1px solid var(--line); border-top: 3px solid var(--verified); border-radius: 12px; padding: 24px; text-align: center; transition: all 0.2s; }
+        .benefit-card:hover { border-color: var(--seal); background: var(--seal-soft); transform: translateY(-4px); box-shadow: 0 16px 32px rgba(63,107,79,0.16); }
+        .b-icon { width: 52px; height: 52px; border-radius: 14px; background: linear-gradient(135deg, rgba(63,107,79,0.14), rgba(63,107,79,0.05)); border: 1px solid rgba(63,107,79,0.28); color: var(--verified); display: inline-flex; align-items: center; justify-content: center; font-size: 19px; margin-bottom: 14px; }
+        .b-title { font-weight: 700; color: var(--ink); margin-bottom: 8px; font-size: 15px; }
+        .b-desc { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+
+        .limit-banner { background: var(--seal-soft); border: 1px solid rgba(138,109,34,0.3); border-left: 4px solid var(--seal); border-radius: 8px; padding: 16px 20px; margin-top: 24px; font-size: 14px; color: #5B4816; line-height: 1.7; }
+        .limit-banner strong { color: #3F3210; }
+
+        .legal-block { margin-top: 36px; }
+        .legal-block:first-child { margin-top: 0; }
+        .legal-sub { font-family: 'IBM Plex Mono', monospace; font-size: 1rem; font-weight: 700; color: var(--ink); margin-bottom: 14px; padding-bottom: 8px; border-bottom: 2px solid var(--seal); display: inline-block; }
+        .legal-todo { background: var(--stamp-soft); border: 1px solid rgba(162,58,44,0.3); border-left: 4px solid var(--stamp); border-radius: 8px; padding: 14px 18px; margin: 16px 0 0; font-size: 13px; color: #6B2A20; line-height: 1.7; }
+        .legal-todo strong { color: var(--stamp-dark); }
+
+        .process { margin-top: 48px; background: var(--paper-2); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+        .process-head { font-family: 'IBM Plex Mono', monospace; background: var(--ink); color: var(--text-on-ink); padding: 16px 24px; font-size: 12px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; }
+        .process-steps { padding: 32px 24px; display: flex; flex-direction: column; gap: 24px; }
+        @media (min-width: 768px) { .process-steps { flex-direction: row; justify-content: space-around; } }
+        .p-step { display: flex; flex-direction: column; align-items: center; text-align: center; }
+        .p-num { font-family: 'IBM Plex Mono', monospace; width: 40px; height: 40px; background: var(--seal); color: var(--text-on-ink); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; margin-bottom: 12px; font-size: 18px; }
+        .p-name { font-weight: 700; color: var(--ink); margin-bottom: 6px; font-size: 15px; }
+        .p-desc { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+
+        .report-section { background: var(--card); border-radius: 12px; padding: 24px; margin-top: 32px; border: 1px solid var(--line); }
+        .r-head { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--text-muted); font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 16px; }
+        .r-rows { display: flex; flex-direction: column; gap: 12px; }
+        .r-row { display: grid; grid-template-columns: 1fr auto; gap: 16px; font-size: 13px; padding: 8px 0; }
+        .r-label { font-family: 'IBM Plex Mono', monospace; color: var(--text-muted); font-size: 12.5px; }
+        .r-val { font-weight: 700; color: var(--ink); font-family: 'IBM Plex Mono', monospace; font-variant-numeric: tabular-nums; }
+        .v-red { color: var(--stamp); } .v-orange { color: var(--seal); } .v-green { color: var(--verified); } .v-cyan { color: var(--cyan); }
+
+        .author-box { background: var(--seal-soft); border: 1px solid rgba(138,109,34,0.3); border-radius: 8px; padding: 20px; margin-top: 24px; display: flex; gap: 16px; }
+        .author-avatar { font-family: 'IBM Plex Mono', monospace; width: 48px; height: 48px; background: var(--seal); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--text-on-ink); font-weight: 800; font-size: 16px; flex-shrink: 0; }
+        .author-text { font-size: 14px; color: #4A3B1A; line-height: 1.6; }
+        .author-text strong { color: #6B5320; }
+
+        .offer-box { background: var(--ink); border-radius: 12px; overflow: hidden; margin-top: 32px; border: 1px solid rgba(201,169,74,0.22); }
+        .offer-head { background-image: radial-gradient(rgba(201,169,74,0.12) 1px, transparent 1.5px), linear-gradient(135deg, var(--ink-2) 0%, var(--ink) 100%); background-size: 22px 22px, cover; padding: 32px 24px; text-align: center; }
+        .offer-price { font-family: 'IBM Plex Mono', monospace; font-size: 3.5rem; font-weight: 700; color: var(--text-on-ink); margin-bottom: 4px; font-variant-numeric: tabular-nums; }
+        .offer-unit { font-size: 14px; color: var(--text-on-ink-muted); }
+        .offer-tag { font-family: 'IBM Plex Mono', monospace; display: inline-block; background: rgba(201,169,74,0.16); color: var(--seal-light); padding: 6px 16px; border-radius: 6px; font-size: 12px; font-weight: 700; margin-top: 12px; border: 1px solid rgba(201,169,74,0.32); }
+        .offer-body { padding: 32px 24px; }
+        .objections { display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px; }
+        .obj-item { display: flex; gap: 12px; font-size: 14px; color: var(--text-on-ink-muted); align-items: flex-start; }
+        .obj-check { color: var(--verified-light); font-weight: 800; font-size: 18px; flex-shrink: 0; margin-top: -2px; }
+
+        #form-section { scroll-margin-top: 84px; }
+        .form-box { background: var(--ink-2); border: 1px solid rgba(201,169,74,0.25); border-radius: 10px; padding: 28px 24px; }
+        .form-box-title { font-size: 15px; font-weight: 700; color: var(--text-on-ink); margin-bottom: 6px; }
+        .form-box-sub { font-size: 13px; color: var(--text-on-ink-muted); margin-bottom: 20px; }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        @media (max-width: 600px) { .form-grid { grid-template-columns: 1fr; } }
+        .form-full { grid-column: 1 / -1; }
+        .f-label { font-family: 'IBM Plex Mono', monospace; display: block; font-size: 11px; font-weight: 600; color: var(--text-on-ink-muted); margin-bottom: 6px; letter-spacing: 0.5px; text-transform: uppercase; }
+        .f-input, .f-select, .f-textarea { width: 100%; background: var(--ink); border: 1px solid rgba(169,184,178,0.25); border-radius: 6px; padding: 11px 14px; color: var(--text-on-ink); font-size: 14px; font-family: 'IBM Plex Sans', sans-serif; outline: none; }
+        .f-input:focus, .f-select:focus, .f-textarea:focus { border-color: rgba(201,169,74,0.6); }
+        .f-input::placeholder, .f-textarea::placeholder { color: #5C6B65; }
+        .f-select option { background: var(--ink-2); }
+        .f-textarea { resize: vertical; min-height: 90px; }
+        .f-input.field-error, .f-select.field-error, .f-textarea.field-error { border-color: var(--stamp); box-shadow: 0 0 0 3px rgba(162,58,44,0.18); }
+        .field-error-msg { display: none; font-size: 11.5px; color: #E38A7A; margin-top: 5px; }
+        .field-error-msg.show { display: block; }
+
+        .gdpr-checkbox { display: flex; align-items: flex-start; gap: 12px; margin: 10px 0; padding: 12px; background: rgba(63,107,79,0.08); border: 1px solid rgba(63,107,79,0.25); border-radius: 6px; }
+        .gdpr-checkbox input { width: 20px; height: 20px; flex-shrink: 0; margin-top: 1px; cursor: pointer; accent-color: var(--seal); }
+        .gdpr-checkbox label { font-size: 12px; color: var(--text-on-ink-muted); cursor: pointer; line-height: 1.5; }
+        .gdpr-checkbox a { color: var(--seal-light); font-weight: 600; text-decoration: none; border-bottom: 1px dotted; }
+        .gdpr-checkbox.candidat { background: rgba(201,169,74,0.08); border-color: rgba(201,169,74,0.28); }
+        .gdpr-checkbox.candidat label { color: var(--text-on-ink-muted); }
+        .gdpr-checkbox.field-error { border-color: var(--stamp); box-shadow: 0 0 0 3px rgba(162,58,44,0.18); }
+
+        .btn-form-submit { width: 100%; background: var(--stamp); color: var(--text-on-ink); padding: 15px; border: none; border-radius: 8px; font-weight: 800; font-size: 15px; cursor: pointer; margin-top: 6px; box-shadow: 0 4px 12px rgba(162,58,44,0.3); transition: all 0.2s; }
+        .btn-form-submit:hover:not(:disabled) { background: var(--stamp-hover); transform: translateY(-2px); }
+        .btn-form-submit:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        .payment-confirm { display: none; background: var(--ink); border: 1px solid rgba(63,107,79,0.35); border-radius: 10px; padding: 32px 24px; text-align: center; margin-top: 16px; }
+        .payment-confirm.visible { display: block; }
+        .pc-icon { font-size: 40px; margin-bottom: 16px; }
+        .pc-title { font-size: 20px; font-weight: 800; color: var(--text-on-ink); margin-bottom: 8px; }
+        .pc-sub { font-size: 14px; color: var(--text-on-ink-muted); margin-bottom: 28px; line-height: 1.7; }
+        .btn-paypal { width: 100%; max-width: 320px; background: #003087; color: #fff; padding: 16px 24px; border: none; border-radius: 8px; font-weight: 700; font-size: 15px; cursor: pointer; transition: all 0.2s; }
+        .btn-paypal:hover { background: #00409a; transform: translateY(-2px); }
+        .pc-note { font-size: 12px; color: var(--text-on-ink-muted); margin-top: 16px; }
+        .pc-steps { display: flex; flex-direction: column; gap: 14px; margin: 20px auto 28px; text-align: left; max-width: 420px; }
+        .pc-step { display: flex; gap: 12px; align-items: flex-start; }
+        .pc-step-num { font-family: 'IBM Plex Mono', monospace; width: 26px; height: 26px; flex-shrink: 0; background: var(--seal); color: var(--text-on-ink); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; }
+        .pc-step-text { font-size: 13.5px; color: var(--text-on-ink-muted); line-height: 1.5; padding-top: 3px; }
+        .pc-step-text strong { color: var(--text-on-ink); }
+        .pc-step-text a { color: var(--seal-light); font-weight: 600; }
+
+        .garantie { background: rgba(63,107,79,0.12); border: 1px solid rgba(63,107,79,0.3); border-radius: 6px; padding: 14px; font-size: 12px; color: var(--verified-light); margin-top: 16px; line-height: 1.6; }
+
+        .toast { position: fixed; bottom: 24px; right: 24px; background: var(--ink-2); border: 1px solid rgba(201,169,74,0.4); color: var(--text-on-ink); padding: 14px 20px; border-radius: 8px; font-size: 13px; font-weight: 600; z-index: 9999; transform: translateY(80px); opacity: 0; transition: all 0.35s; max-width: 320px; }
+        .toast.show { transform: translateY(0); opacity: 1; }
+        .toast.error { border-color: rgba(162,58,44,0.6); }
+
+        .footer { background: var(--ink); color: var(--text-on-ink-muted); padding: 32px 24px; text-align: center; border-top: 1px solid rgba(169,184,178,0.14); font-size: 13px; }
+        .footer-logo { color: var(--text-on-ink); font-weight: 700; margin-bottom: 8px; }
+        .footer-logo .mark { color: var(--seal-light); }
+        .footer-links { display: flex; justify-content: center; gap: 16px; flex-wrap: wrap; margin-top: 12px; font-size: 12px; }
+        .footer-links a { color: var(--text-on-ink-muted); text-decoration: none; transition: color 0.2s; }
+        .footer-links a:hover { color: var(--seal-light); }
+
+        /* Section de clôture — dernier repère avant le pied de page */
+        .closing { background-color: var(--ink); box-shadow: 0 0 0 100vmax var(--ink); background-image: radial-gradient(rgba(201,169,74,0.10) 1px, transparent 1.5px); background-size: 26px 26px; padding: 96px 24px; text-align: center; }
+        .closing-inner { max-width: 640px; margin: 0 auto; }
+        .closing-eyebrow { font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; color: var(--seal-light); margin-bottom: 18px; }
+        .closing-title { font-family: 'IBM Plex Mono', monospace; font-weight: 700; font-size: clamp(1.7rem, 4vw, 2.4rem); color: var(--text-on-ink); line-height: 1.3; text-wrap: balance; margin-bottom: 18px; }
+        .closing-sub { font-size: 1.02rem; color: var(--text-on-ink-muted); max-width: 480px; margin: 0 auto 40px; line-height: 1.7; }
+        .anchor-compare { display: flex; align-items: center; justify-content: center; gap: 28px; flex-wrap: wrap; margin-bottom: 44px; }
+        .anchor-item { text-align: center; }
+        .anchor-num { font-family: 'IBM Plex Mono', monospace; font-weight: 700; font-size: 2.4rem; line-height: 1; font-variant-numeric: tabular-nums; }
+        .anchor-num.loss { color: var(--stamp); }
+        .anchor-num.win { color: var(--verified-light); }
+        .anchor-label { font-size: 12.5px; color: var(--text-on-ink-muted); margin-top: 8px; max-width: 170px; margin-left: auto; margin-right: auto; }
+        .anchor-vs { font-family: 'IBM Plex Mono', monospace; color: var(--text-on-ink-muted); font-size: 13px; }
+        .closing-cta-btn { background: var(--stamp); color: var(--text-on-ink); border: none; padding: 18px 40px; border-radius: 8px; font-weight: 700; font-size: 17px; cursor: pointer; transition: all 0.2s; box-shadow: 0 8px 24px rgba(162,58,44,0.35); }
+        .closing-cta-btn:hover { background: var(--stamp-hover); transform: translateY(-2px); box-shadow: 0 12px 28px rgba(162,58,44,0.45); }
+        .closing-trust { margin-top: 20px; font-size: 12.5px; color: var(--text-on-ink-muted); }
+
+        .skip-link { position: absolute; top: -100px; left: 12px; z-index: 100; background: var(--seal-light); color: var(--ink); font-weight: 700; padding: 10px 16px; border-radius: 0 0 6px 6px; text-decoration: none; transition: top 0.2s; }
+        .skip-link:focus { top: 0; }
+
+        :focus-visible { outline: 2px solid var(--seal-light); outline-offset: 2px; }
+        .btn-paypal:focus-visible { outline-color: #fff; }
+
+        .reveal { opacity: 0; transform: translateY(24px); transition: opacity 0.7s ease, transform 0.7s ease; }
+        .reveal.is-visible { opacity: 1; transform: translateY(0); }
+        @media (prefers-reduced-motion: reduce) {
+            .reveal { opacity: 1; transform: none; transition: none; }
+            .btn-primary:hover, .btn-form-submit:hover:not(:disabled), .closing-cta-btn:hover, .pain-card:hover, .benefit-card:hover { transform: none; }
+        }
+    </style>
+    <noscript><style>.reveal { opacity: 1 !important; transform: none !important; }</style></noscript>
+</head>
+
+<body>
+
+    <a href="#main-content" class="skip-link">Aller au contenu principal</a>
+
+    <!-- NAV -->
+    <nav>
+        <div class="nav-inner">
+            <a href="#" class="logo">
+                <span class="fa-solid fa-shield-halved shield" aria-hidden="true"></span>
+                <span>Bail<span class="mark">Safe</span></span>
+            </a>
+            <div class="nav-links">
+                <a href="#pain">Le Risque</a>
+                <a href="#benefits">La Solution</a>
+                <a href="#expert">L'Expertise</a>
+                <a href="#offer">Tarif</a>
+            </div>
+            <button class="nav-cta" onclick="document.getElementById('form-section').scrollIntoView({behavior:'smooth'})">Sécuriser un dossier</button>
+        </div>
+    </nav>
+
+    <!-- HERO -->
+    <section class="hero" id="main-content">
+        <div class="hero-content">
+            <div class="h-badge">Service exclusif pour propriétaires bailleurs</div>
+            <h1 class="h-title">Ne donnez pas les clés de votre bien à un <span class="accent">fraudeur</span> (sans le savoir).</h1>
+            <p class="h-sub">Les fausses fiches de paie et avis d'imposition falsifiés sont devenus indétectables à l'œil nu. BailSafe détecte ces anomalies grâce à une analyse forensique avancée des PDF — évitez jusqu'à 3 ans de procédure d'expulsion et des milliers d'euros de pertes.</p>
+            <div class="h-buttons">
+                <button class="btn-primary" onclick="document.getElementById('form-section').scrollIntoView({behavior:'smooth'})">Analyser un dossier maintenant (39€)</button>
+                <button class="btn-secondary" onclick="document.getElementById('expert').scrollIntoView({behavior:'smooth'})">Voir un exemple de rapport</button>
+            </div>
+            <div class="h-proof">
+                <div><span>⚡ Résultat sous 24h</span></div>
+                <div><span>📊 Investissement 100% déductible</span></div>
+                <div><a href="#privacy" style="color:#C9A94A;text-decoration:none;border-bottom:1px dotted rgba(201,169,74,0.5)">✓ Conforme RGPD — voir le détail</a></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- SCANNER DEMO -->
+    <div class="scanner-demo" style="padding: 40px 24px 0;">
+        <div class="scan-container">
+            <div class="scan-header">
+                <div class="scan-dots">
+                    <div class="dot dot-r"></div>
+                    <div class="dot dot-y"></div>
+                    <div class="dot dot-g"></div>
+                </div>
+                <span class="scan-name">Analyse BailSafe en cours...</span>
+            </div>
+            <div class="scan-body">
+                <div class="scan-row"><span class="scan-label">SHA-256 intégrité</span><span class="badge-ok">VÉRIFIÉ</span></div>
+                <div class="scan-row"><span class="scan-label">Sections xref</span><span class="badge-warn">ANORMAL (3)</span></div>
+                <div class="scan-row"><span class="scan-label">Métadonnées éditeur</span><span class="badge-alert">Adobe Photoshop 2023</span></div>
+                <div class="scan-row"><span class="scan-label">Écart budgétaire</span><span class="badge-alert">1 240 € / DÉPASSÉ</span></div>
+                <div class="scan-row"><span class="scan-label">JavaScript embarqué</span><span class="badge-ok">AUCUN</span></div>
+                <div class="scan-score">
+                    <div class="score-label">
+                        <span>Score de risque</span>
+                        <span class="score-num" id="scorenum">0</span>
+                    </div>
+                    <div class="score-bar"><div class="score-fill" id="scorefill"></div></div>
+                    <div class="verdict" id="verd">⚠️ ANOMALIES DÉTECTÉES — Vérification humaine recommandée avant toute décision.</div>
+                </div>
+                <div class="scanner-line"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PAIN POINTS -->
+    <section class="section reveal" id="pain">
+        <div class="s-label">// Le_Problème</div>
+        <h2 class="s-title">Vous contrôlez à l'œil nu. <span class="accent">Les fraudeurs le savent.</span></h2>
+        <p class="s-desc">Les fausses fiches de paie, avis d'imposition modifiés et contrats bidons ne se voient plus. Ils sont générés en PDF propre, avec des outils gratuits accessibles à tous.</p>
+        <div class="pain-grid">
+            <div class="pain-card">
+                <div class="pain-num">01</div>
+                <div class="pain-title">Un impayé = ~3 000 € de pertes minimum</div>
+                <div class="pain-desc">Avant toute procédure légale. Sans compter les mois de vacance locative et les frais d'huissier.</div>
+            </div>
+            <div class="pain-card">
+                <div class="pain-num">02</div>
+                <div class="pain-title">Un montant modifié est invisible à l'œil nu</div>
+                <div class="pain-desc">Le chiffre semble juste, la mise en page aussi. Seule une analyse forensique trahit la manipulation.</div>
+            </div>
+            <div class="pain-card">
+                <div class="pain-num">03</div>
+                <div class="pain-title">Une fois le bail signé, vous êtes bloqué</div>
+                <div class="pain-desc">L'expulsion prend 12 à 18 mois. Un dossier non vérifié vous coûtera bien plus que 39 €.</div>
+            </div>
+            <div class="pain-card">
+                <div class="pain-num">04</div>
+                <div class="pain-title">Faire confiance à son instinct = roulette</div>
+                <div class="pain-desc">Les fraudeurs sont polis, bien préparés, et suivent des tutoriels pour falsifier leurs documents.</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- BENEFITS -->
+    <section class="section reveal" id="benefits">
+        <div class="s-label">// La_Solution</div>
+        <h2 class="s-title">Ce que BailSafe analyse <span class="accent">en moins de 24h.</span></h2>
+        <p class="s-desc">Pas de formulaire compliqué, pas de spécialiste à convaincre. Vous envoyez le PDF — BailSafe inspecte la structure profonde et vous livre un verdict clair.</p>
+        <div class="benefits-grid">
+            <div class="benefit-card"><div class="b-icon"><i class="fa-solid fa-magnifying-glass-chart" aria-hidden="true"></i></div><div class="b-title">Forensique métadonnées</div><div class="b-desc">Détecte Photoshop, Canva et outils d'édition cachés dans la structure du PDF.</div></div>
+            <div class="benefit-card"><div class="b-icon"><i class="fa-solid fa-fingerprint" aria-hidden="true"></i></div><div class="b-title">Intégrité SHA-256</div><div class="b-desc">Empreinte calculée sur le fichier brut — prouve que le document n'a pas été altéré numériquement.</div></div>
+            <div class="benefit-card"><div class="b-icon"><i class="fa-solid fa-scale-balanced" aria-hidden="true"></i></div><div class="b-title">Cohérence budgétaire</div><div class="b-desc">Vérifie automatiquement si les cumuls de salaire correspondent aux mensualités.</div></div>
+            <div class="benefit-card"><div class="b-icon"><i class="fa-solid fa-file-shield" aria-hidden="true"></i></div><div class="b-title">Rapport PDF transmissible</div><div class="b-desc">Document daté, conservable, utile en cas de litige ou refus motivé.</div></div>
+        </div>
+
+        <div class="limit-banner">
+            ⚠️ <strong>Limite à connaître :</strong> BailSafe détecte les falsifications réalisées directement sur un fichier PDF numérique. Un document imprimé puis re-scanné après modification peut échapper à cette analyse. Dans ce cas, d'autres vérifications (contact de l'employeur, demande de l'original) restent recommandées. BailSafe fournit un avis technique consultatif, pas une garantie juridique.
+        </div>
+
+        <div class="process">
+            <div class="process-head">Procédure — 3 Étapes</div>
+            <div class="process-steps">
+                <div class="p-step"><div class="p-num">1</div><div class="p-name">Commande</div><div class="p-desc">Remplissez le formulaire ci-dessous. Vous recevrez les instructions de paiement par email.</div></div>
+                <div class="p-step"><div class="p-num">2</div><div class="p-name">Analyse complète</div><div class="p-desc">Structure PDF, métadonnées, finances, intégrité.</div></div>
+                <div class="p-step"><div class="p-num">3</div><div class="p-name">Rapport sous 24h</div><div class="p-desc">Verdict clair + détail de chaque anomalie détectée.</div></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- EXPERTISE -->
+    <section class="section reveal" id="expert">
+        <div class="s-label">// Preuve_Technique</div>
+        <h2 class="s-title">Voici <span class="accent">exactement</span> ce que le rapport contient.</h2>
+        <p class="s-desc">Pas de promesses vagues. Un exemple réel, sur un dossier détecté comme suspect :</p>
+        <div class="report-section">
+            <div class="r-head">Rapport d'audit bailsafe — Dossier_0042.pdf</div>
+            <div class="r-rows">
+                <div class="r-row"><span class="r-label">Statut global</span><span class="r-val v-red">SUSPECT — Anomalies majeures</span></div>
+                <div class="r-row"><span class="r-label">Score de risque</span><span class="r-val v-red">94 / 100</span></div>
+                <div class="r-row"><span class="r-label">Hash SHA-256</span><span class="r-val v-cyan">a3f9c2d1... (calculé sur le fichier)</span></div>
+                <div class="r-row"><span class="r-label">Sections xref</span><span class="r-val v-orange">3 → structure remaniée</span></div>
+                <div class="r-row"><span class="r-label">Logiciel détecté</span><span class="r-val v-red">Adobe Photoshop 2023</span></div>
+                <div class="r-row"><span class="r-label">Écart budgétaire</span><span class="r-val v-red">1 240 € — seuil dépassé</span></div>
+                <div class="r-row"><span class="r-label">JavaScript</span><span class="r-val v-green">Aucun</span></div>
+                <div class="r-row"><span class="r-label">Recommandation</span><span class="r-val v-orange">Demander l'original ou refuser</span></div>
+            </div>
+        </div>
+        <div class="author-box">
+            <div class="author-avatar">NB</div>
+            <div class="author-text"><strong>Nolan, créateur de BailSafe.</strong> J'ai construit cet outil après avoir constaté qu'un PDF de fiche de paie se falsifie en moins de 10 minutes avec des outils gratuits — et que les propriétaires n'avaient aucun moyen technique de le détecter. BailSafe automatise l'analyse que seul un expert pouvait réaliser avant.</div>
+        </div>
+    </section>
+
+    <!-- OFFER -->
+    <section class="section reveal" id="offer">
+        <div class="s-label">// Offre_Finale</div>
+        <h2 class="s-title">Un dossier frauduleux coûte des milliers.<br><span class="accent">L'audit en coûte 39 €.</span></h2>
+        <p class="s-desc">Votre candidat semble sérieux. Peut-être qu'il l'est. Mais si son PDF a été retouché numériquement, vous ne le verrez jamais — BailSafe si.</p>
+
+        <div class="offer-box">
+            <div class="offer-head">
+                <div class="offer-price">39 €</div>
+                <div class="offer-unit">TTC par dossier analysé</div>
+                <div class="offer-tag">RAPPORT PDF INCLUS · SOUS 24H</div>
+            </div>
+            <div class="offer-body">
+                <div class="objections">
+                    <div class="obj-item"><span class="obj-check">✓</span><span>Commande directe — pas de compte à créer, pas de logiciel.</span></div>
+                    <div class="obj-item"><span class="obj-check">✓</span><span>Vous envoyez juste le PDF par email — aucune manipulation technique requise.</span></div>
+                    <div class="obj-item"><span class="obj-check">✓</span><span>Le rapport est daté et conservable — utile en cas de litige.</span></div>
+                    <div class="obj-item"><span class="obj-check">✓</span><span>Conforme RGPD — données supprimées sous 30 jours.</span></div>
+                </div>
+
+                <!-- FORMULAIRE DE COMMANDE -->
+                <div id="form-section">
+                    <div class="form-box">
+                        <div class="form-box-title">📋 Commander votre audit — 39 €</div>
+                        <div class="form-box-sub">Remplissez vos infos — vous recevrez une confirmation par email avec les instructions de paiement PayPal</div>
+
+                        <div class="form-grid">
+                            <div>
+                                <label class="f-label" for="name">Prénom & Nom *</label>
+                                <input class="f-input" type="text" id="name" required autocomplete="name" placeholder="Jean Dupont" aria-describedby="err-name">
+                                <div class="field-error-msg" id="err-name">Merci d'indiquer votre nom.</div>
+                            </div>
+                            <div>
+                                <label class="f-label" for="email">Email *</label>
+                                <input class="f-input" type="email" id="email" required autocomplete="email" placeholder="vous@email.com" aria-describedby="err-email">
+                                <div class="field-error-msg" id="err-email">Adresse email manquante ou invalide.</div>
+                            </div>
+                            <div>
+                                <label class="f-label" for="phone">Téléphone</label>
+                                <input class="f-input" type="tel" id="phone" autocomplete="tel" placeholder="06 12 34 56 78">
+                            </div>
+                            <div>
+                                <label class="f-label" for="doctype">Type de document *</label>
+                                <select class="f-select" id="doctype" required aria-describedby="err-doctype">
+                                    <option value="" disabled selected>Choisir...</option>
+                                    <option value="Fiche de paie">Fiche de paie</option>
+                                    <option value="Avis d'imposition">Avis d'imposition</option>
+                                    <option value="Contrat de travail">Contrat de travail</option>
+                                    <option value="Relevé bancaire">Relevé bancaire</option>
+                                    <option value="Autre">Autre</option>
+                                </select>
+                                <div class="field-error-msg" id="err-doctype">Merci de choisir un type de document.</div>
+                            </div>
+                            <div class="form-full">
+                                <label class="f-label" for="message">Message / Précisions (optionnel)</label>
+                                <textarea class="f-textarea" id="message" autocomplete="off" placeholder="Ex : dossier pour un T3 à 800€/mois..."></textarea>
+                            </div>
+
+                            <!-- Checkbox RGPD candidat -->
+                            <div class="form-full">
+                                <div class="gdpr-checkbox candidat">
+                                    <input type="checkbox" id="gdpr_candidat" required>
+                                    <label for="gdpr_candidat">
+                                        ⚖️ J'ai informé le candidat locataire que ses documents feront l'objet d'une analyse technique par un prestataire tiers, conformément à mon obligation d'information (RGPD — art. 14). Je reconnais que BailSafe réalise une analyse technique du document et non de la personne.
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Checkbox renonciation droit de rétractation -->
+                            <div class="form-full">
+                                <div class="gdpr-checkbox candidat">
+                                    <input type="checkbox" id="retractation" required>
+                                    <label for="retractation">
+                                        📄 Je demande le démarrage immédiat de l'analyse et je renonce expressément à
+                                        mon droit de rétractation de 14 jours une fois le rapport livré, conformément
+                                        aux <a href="#privacy">CGV</a> (art. L221-28 du Code de la consommation).
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Checkbox RGPD bailleur -->
+                            <div class="form-full">
+                                <div class="gdpr-checkbox">
+                                    <input type="checkbox" id="gdpr" required>
+                                    <label for="gdpr">J'accepte que mes données (nom, email, téléphone) soient traitées par BailSafe pour le traitement de ma commande. J'ai pris connaissance de la <a href="#privacy">politique de confidentialité</a>. Données conservées 30 jours maximum.</label>
+                                </div>
+                            </div>
+
+                            <div class="form-full">
+                                <button type="button" class="btn-form-submit" id="submitBtn" onclick="handleSubmit()">
+                                    <span id="submitText">📤 Envoyer ma demande</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CONFIRMATION + PAIEMENT PAYPAL -->
+                <div class="payment-confirm" id="paymentConfirm">
+                    <div class="pc-icon">✅</div>
+                    <div class="pc-title">Demande reçue ! Encore 2 étapes.</div>
+                    <div class="pc-sub">Pour lancer l'analyse, il vous reste :</div>
+                    <div class="pc-steps">
+                        <div class="pc-step">
+                            <div class="pc-step-num">1</div>
+                            <div class="pc-step-text"><strong>Payez 39 €</strong> via le bouton PayPal ci-dessous.</div>
+                        </div>
+                        <div class="pc-step">
+                            <div class="pc-step-num">2</div>
+                            <div class="pc-step-text"><strong>Envoyez le PDF</strong> à auditer par email à
+                                <a href="mailto:bunetnolan@gmail.com?subject=Document%20à%20auditer%20-%20BailSafe">bunetnolan@gmail.com</a>,
+                                en précisant le même nom que dans le formulaire.</div>
+                        </div>
+                    </div>
+                    <button class="btn-paypal" onclick="window.open('https://paypal.me/NolanBunet/39EUR','_blank')">
+                        🅿️ Payer 39 € via PayPal
+                    </button>
+                    <div class="pc-note">Paiement sécurisé · Remboursé si document incompatible · Rapport sous 24h après réception du paiement <u>et</u> du document</div>
+                </div>
+
+                <div class="garantie">✓ Si l'analyse ne peut pas être réalisée, vous êtes remboursé intégralement.</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CLÔTURE — dernier repère avant les mentions légales -->
+    <section class="section closing reveal">
+        <div class="closing-inner">
+            <div class="closing-eyebrow">// Avant de fermer ce dossier</div>
+            <h2 class="closing-title">Le prochain bail que vous signez sans vérifier pourrait être celui qui vous coûte cher.</h2>
+            <p class="closing-sub">Vous avez vu comment un PDF se falsifie, et ce que l'analyse détecte. La décision qu'il reste à prendre est simple :</p>
+
+            <div class="anchor-compare">
+                <div class="anchor-item">
+                    <div class="anchor-num loss">3 000 €+</div>
+                    <div class="anchor-label">Perte moyenne d'un impayé non détecté à temps</div>
+                </div>
+                <div class="anchor-vs">vs</div>
+                <div class="anchor-item">
+                    <div class="anchor-num win">39 €</div>
+                    <div class="anchor-label">Coût d'un audit BailSafe, remboursé si inexploitable</div>
+                </div>
+            </div>
+
+            <button class="closing-cta-btn" onclick="document.getElementById('form-section').scrollIntoView({behavior:'smooth'})">
+                Sécuriser ce dossier maintenant — 39 €
+            </button>
+            <div class="closing-trust">Analyse réalisée personnellement par Nolan, un dossier à la fois — pas un algorithme anonyme. Conforme RGPD.</div>
+        </div>
+    </section>
+
+    <!-- MENTIONS LÉGALES / CGV / CONFIDENTIALITÉ -->
+    <section class="section" id="privacy">
+        <div class="s-label">// Conformité</div>
+        <h2 class="s-title">Mentions légales, <span class="accent">CGV & confidentialité</span></h2>
+        <div class="s-desc" style="max-width:760px">
+
+            <div class="legal-block">
+                <h3 class="legal-sub">Mentions légales</h3>
+                <p><strong>Éditeur du site :</strong> Nolan Bunet — Sainte-Rose, Guadeloupe. Contact : bunetnolan@gmail.com.</p>
+                <p style="margin-top:12px"><strong>Statut juridique :</strong> [À COMPLÉTER — statut d'entreprise] — SIRET : [À COMPLÉTER].</p>
+                <p style="margin-top:12px"><strong>Directeur de la publication :</strong> Nolan Bunet.</p>
+                <p style="margin-top:12px"><strong>Hébergement du site :</strong> [À COMPLÉTER selon l'hébergeur retenu — nom, adresse].</p>
+                <div class="legal-todo">
+                    🚧 <strong>À compléter avant toute mise en ligne publique :</strong> statut juridique et numéro SIRET.
+                    En France, exercer une activité commerciale de façon habituelle et rémunérée nécessite une
+                    immatriculation (auto-entrepreneur au minimum) — vendre cet audit sans statut enregistré n'est
+                    pas conforme. Immatriculation en ligne sur le portail officiel
+                    <a href="https://www.autoentrepreneur.urssaf.fr" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline">autoentrepreneur.urssaf.fr</a>
+                    (rubrique « Créer mon auto-entreprise »). Compter ~4 semaines entre l'immatriculation (INPI) et
+                    la réception du SIRET, puis 90 jours pour la première déclaration de chiffre d'affaires.
+                </div>
+            </div>
+
+            <div class="legal-block">
+                <h3 class="legal-sub">Conditions générales de vente</h3>
+                <p><strong>Objet :</strong> prestation d'analyse technique (forensique) d'un document PDF fourni par le client, donnant lieu à un rapport PDF détaillant les éventuelles anomalies détectées.</p>
+                <p style="margin-top:12px"><strong>Prix :</strong> 39 € TTC par dossier analysé, sans frais caché.</p>
+                <p style="margin-top:12px"><strong>Paiement :</strong> intégral, par PayPal, préalable à la réalisation de l'analyse.</p>
+                <p style="margin-top:12px"><strong>Délai d'exécution :</strong> rapport transmis par email sous 24h à compter de la réception conjointe du paiement et du document à analyser.</p>
+                <p style="margin-top:12px"><strong>Droit de rétractation :</strong> conformément à l'article L221-28 du Code de la consommation, ce droit ne s'applique pas aux prestations pleinement exécutées avant la fin du délai légal de 14 jours, dès lors que leur exécution a commencé avec l'accord exprès du client et que celui-ci a renoncé à ce droit. En cochant la case dédiée lors de la commande, vous demandez expressément le démarrage immédiat de l'analyse et renoncez à votre droit de rétractation une fois le rapport livré.</p>
+                <p style="margin-top:12px"><strong>Responsabilité :</strong> le rapport est un avis technique consultatif (voir ci-dessous). BailSafe ne garantit pas l'exhaustivité de la détection et ne saurait être tenu responsable des décisions prises par le bailleur sur la base du rapport.</p>
+                <p style="margin-top:12px"><strong>Réclamations :</strong> à adresser à bunetnolan@gmail.com. Médiateur de la consommation : [À COMPLÉTER].</p>
+                <p style="margin-top:12px"><strong>Droit applicable :</strong> droit français.</p>
+                <div class="legal-todo">
+                    🚧 <strong>À compléter :</strong> coordonnées d'un médiateur de la consommation — obligatoire dès
+                    la première vente à un particulier (amende jusqu'à 3 000 € sinon), quel que soit le statut
+                    juridique. Choisir un médiateur dans la liste officielle référencée par la CECMC :
+                    <a href="https://www.economie.gouv.fr/mediation-conso/vous-etes-un-professionnel/choisir-un-mediateur-de-la-consommation/mediateurs-references" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline">economie.gouv.fr — médiateurs référencés</a>.
+                    Budget indicatif : 30-150 € d'adhésion (souvent pour 3 ans) + 60-150 € par acte de médiation.
+                    Gratuit pour le client. Une fois choisi, ses coordonnées doivent apparaître ici et sur les factures.
+                </div>
+            </div>
+
+            <div class="legal-block">
+                <h3 class="legal-sub">Confidentialité (RGPD)</h3>
+                <p><strong>Responsable de traitement :</strong> Nolan Bunet — BailSafe, Sainte-Rose (Guadeloupe). Contact : bunetnolan@gmail.com.</p>
+                <p style="margin-top:12px"><strong>Données collectées :</strong> via le formulaire (nom, email, téléphone, type de document) et, lors de l'audit, les documents PDF transmis volontairement.</p>
+                <p style="margin-top:12px"><strong>Finalité :</strong> traiter la commande et réaliser l'analyse documentaire technique demandée.</p>
+                <p style="margin-top:12px"><strong>Base légale :</strong> exécution de mesures précontractuelles/contractuelles et intérêt légitime du bailleur à vérifier l'authenticité des pièces.</p>
+                <p style="margin-top:12px"><strong>Pièces de tiers :</strong> si vous transmettez les documents d'un candidat locataire, vous devez l'en informer (art. 14 RGPD — voir le modèle dédié fourni à cet effet). BailSafe n'analyse que les documents légalement exigibles (décret n°2015-1437).</p>
+                <p style="margin-top:12px"><strong>Conservation :</strong> documents et données supprimés sous 30 jours maximum.</p>
+                <p style="margin-top:12px"><strong>Hébergement :</strong> [À VÉRIFIER — localisation réelle des serveurs de l'hébergeur retenu ; ne pas affirmer un hébergement UE sans l'avoir confirmé auprès du prestataire].</p>
+                <p style="margin-top:12px"><strong>Aucune décision automatisée :</strong> le rapport est un avis technique consultatif. La décision finale appartient au bailleur (art. 22 RGPD).</p>
+                <p style="margin-top:12px"><strong>Limite technique :</strong> BailSafe ne peut pas garantir la détection de falsifications réalisées via impression puis re-scan.</p>
+                <p style="margin-top:12px"><strong>Vos droits :</strong> accès, rectification, suppression, opposition — à exercer à bunetnolan@gmail.com. Réclamation possible auprès de la CNIL (cnil.fr).</p>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+        <div class="footer-logo">
+            <span class="fa-solid fa-shield-halved" style="color:#C9A94A;margin-right:6px" aria-hidden="true"></span>Bail<span class="mark">Safe</span>
+        </div>
+        <p>© 2026 BailSafe. L'analyse forensique est un outil d'aide à la décision — aucune décision automatisée n'est prise sur les personnes.</p>
+        <div class="footer-links">
+            <a href="#privacy">Mentions légales, CGV & confidentialité</a>
+            <span>·</span>
+            <a href="mailto:bunetnolan@gmail.com?subject=RGPD%20-Droit%20à%20l'oubli">Droit à l'oubli</a>
+            <span>·</span>
+            <a href="mailto:bunetnolan@gmail.com?subject=Commande BailSafe">Commander par email</a>
+            <span>·</span>
+            <a href="https://www.facebook.com/share/1KKBK1mfpV/?mibextid=wwXlfr" target="_blank">Facebook</a>
+        </div>
+        <p style="margin-top:12px;font-size:11px;color:#7C8B85">bunetnolan@gmail.com · Sainte-Rose, Guadeloupe</p>
+    </footer>
+
+    <!-- TOAST -->
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <script>
+        // ──────────────────────────────────────────────────────────
+        // CONFIGURATION — à remplir avant déploiement
+        // Créer un formulaire sur https://formspree.io et coller l'URL ici
+        //
+        // ⚠️ RGPD (Schrems II, art. 44-49) : Formspree est hébergé aux États-Unis.
+        // Un transfert de données personnelles (nom, email, tél., type de document) vers
+        // les US sans mécanisme de protection adéquat est illégal depuis l'invalidation
+        // du Privacy Shield. Avant de configurer l'ID ci-dessous, vérifier l'une de ces
+        // options : (a) signer un DPA + Clauses Contractuelles Types avec Formspree,
+        // (b) activer une offre de traitement UE si Formspree en propose une, ou
+        // (c) remplacer Formspree par un service hébergé dans l'UE (ex. Brevo, EmailJS EU).
+        const FORMSPREE_URL = "https://formspree.io/f/REMPLACE_PAR_TON_ID_FORMSPREE";
+        // ──────────────────────────────────────────────────────────
+
+        function showToast(msg, isError = false) {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.className = 'toast' + (isError ? ' error' : '') + ' show';
+            setTimeout(() => { t.className = 'toast' + (isError ? ' error' : ''); }, 4000);
+        }
+
+        // Scanner animation
+        setTimeout(() => {
+            const fill = document.getElementById('scorefill');
+            const num  = document.getElementById('scorenum');
+            const verd = document.getElementById('verd');
+            if (!fill) return;
+            fill.style.width = '94%';
+            let t0 = null;
+            function tick(ts) {
+                if (!t0) t0 = ts;
+                const p = Math.min((ts - t0) / 2200, 1);
+                const ease = 1 - Math.pow(1 - p, 4);
+                num.textContent = Math.round(ease * 94) + '/100';
+                if (p === 1) verd.style.opacity = '1';
+                if (p < 1) requestAnimationFrame(tick);
+            }
+            requestAnimationFrame(tick);
+        }, 900);
+
+        function clearFieldErrors() {
+            ['name', 'email', 'doctype'].forEach(id => {
+                document.getElementById(id).classList.remove('field-error');
+                const msg = document.getElementById('err-' + id);
+                if (msg) msg.classList.remove('show');
+            });
+            ['gdpr_candidat', 'retractation', 'gdpr'].forEach(id => {
+                document.getElementById(id).closest('.gdpr-checkbox').classList.remove('field-error');
+            });
+        }
+
+        // Retire le surlignage d'un champ dès que l'utilisateur le corrige
+        ['name', 'email'].forEach(id => {
+            document.getElementById(id).addEventListener('input', function () {
+                this.classList.remove('field-error');
+                const msg = document.getElementById('err-' + id);
+                if (msg) msg.classList.remove('show');
+            });
+        });
+        document.getElementById('doctype').addEventListener('change', function () {
+            this.classList.remove('field-error');
+            document.getElementById('err-doctype').classList.remove('show');
+        });
+        ['gdpr_candidat', 'retractation', 'gdpr'].forEach(id => {
+            document.getElementById(id).addEventListener('change', function () {
+                if (this.checked) this.closest('.gdpr-checkbox').classList.remove('field-error');
+            });
+        });
+
+        async function handleSubmit() {
+            const nameEl         = document.getElementById('name');
+            const emailEl        = document.getElementById('email');
+            const phone          = document.getElementById('phone').value.trim();
+            const doctypeEl      = document.getElementById('doctype');
+            const message        = document.getElementById('message').value.trim();
+            const gdprEl         = document.getElementById('gdpr');
+            const gdprCandidatEl = document.getElementById('gdpr_candidat');
+            const retractationEl = document.getElementById('retractation');
+
+            const name  = nameEl.value.trim();
+            const email = emailEl.value.trim();
+            const doctype = doctypeEl.value;
+            const emailValid = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email);
+
+            clearFieldErrors();
+            let firstInvalid = null;
+            let errorCount = 0;
+            const flag = (el, msgId) => {
+                el.classList.add('field-error');
+                if (msgId) document.getElementById(msgId).classList.add('show');
+                firstInvalid = firstInvalid || el;
+                errorCount++;
+            };
+            const flagCheckbox = (el) => {
+                el.closest('.gdpr-checkbox').classList.add('field-error');
+                firstInvalid = firstInvalid || el;
+                errorCount++;
+            };
+
+            if (!name) flag(nameEl, 'err-name');
+            if (!email || !emailValid) flag(emailEl, 'err-email');
+            if (!doctype) flag(doctypeEl, 'err-doctype');
+            if (!gdprCandidatEl.checked) flagCheckbox(gdprCandidatEl);
+            if (!retractationEl.checked) flagCheckbox(retractationEl);
+            if (!gdprEl.checked) flagCheckbox(gdprEl);
+
+            if (errorCount > 0) {
+                showToast(`⚠️ ${errorCount} champ${errorCount > 1 ? 's' : ''} à corriger — surligné${errorCount > 1 ? 's' : ''} ci-dessous`, true);
+                firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                firstInvalid.focus({ preventScroll: true });
+                return;
+            }
+            if (FORMSPREE_URL.includes('REMPLACE_PAR_TON_ID')) {
+                showToast('❌ Formulaire non configuré — contacte bunetnolan@gmail.com', true);
+                return;
+            }
+
+            const btn = document.getElementById('submitBtn');
+            const txt = document.getElementById('submitText');
+            btn.disabled = true;
+            txt.textContent = '⏳ Envoi en cours...';
+
+            try {
+                const response = await fetch(FORMSPREE_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    body: JSON.stringify({
+                        name,
+                        email,
+                        phone: phone || 'Non renseigné',
+                        document_type: doctype,
+                        message: message || 'Aucune précision',
+                        gdpr_consent: 'Accepté',
+                        gdpr_candidat_informe: 'Confirmé',
+                        retractation_renoncement: 'Confirmé',
+                        _subject: '🛡️ Nouvelle commande BailSafe — ' + name,
+                        _replyto: email
+                    })
+                });
+
+                if (response.ok) {
+                    document.getElementById('form-section').style.display = 'none';
+                    const confirm = document.getElementById('paymentConfirm');
+                    confirm.classList.add('visible');
+                    confirm.setAttribute('tabindex', '-1');
+                    confirm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    confirm.focus({ preventScroll: true });
+                    showToast('✅ Demande envoyée ! Passez au paiement PayPal.');
+                } else {
+                    throw new Error('Erreur ' + response.status);
+                }
+            } catch (err) {
+                btn.disabled = false;
+                txt.textContent = '📤 Envoyer ma demande';
+                showToast('❌ Erreur — contacte bunetnolan@gmail.com directement.', true);
+            }
+        }
+
+        // Apparition au scroll (dégradation propre : reste visible si non supporté)
+        if ('IntersectionObserver' in window) {
+            const revealObserver = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('is-visible');
+                        revealObserver.unobserve(entry.target);
+                    }
+                });
+            }, { threshold: 0.12 });
+            document.querySelectorAll('.reveal').forEach(el => revealObserver.observe(el));
+        } else {
+            document.querySelectorAll('.reveal').forEach(el => el.classList.add('is-visible'));
+        }
+    </script>
+
+</body>
+</html>

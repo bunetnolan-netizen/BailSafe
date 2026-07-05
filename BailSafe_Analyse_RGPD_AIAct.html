@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BailSafe — Analyse RGPD & AI Act</title>
+  <style>
+    :root {
+      --dark: #0f172a;
+      --dark2: #1e293b;
+      --amber: #f59e0b;
+      --amber-light: #fef3c7;
+      --red: #dc2626;
+      --red-light: #fef2f2;
+      --orange: #d97706;
+      --orange-light: #fff7ed;
+      --green: #16a34a;
+      --green-light: #f0fdf4;
+      --blue: #2563eb;
+      --blue-light: #eff6ff;
+      --slate: #64748b;
+      --slate-light: #f8fafc;
+      --border: #e2e8f0;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: #f8fafc;
+      color: #1e293b;
+      line-height: 1.7;
+      font-size: 15px;
+    }
+
+    /* ── HEADER ── */
+    .doc-header {
+      background: var(--dark);
+      color: #fff;
+      padding: 48px 40px 36px;
+      position: relative;
+      overflow: hidden;
+    }
+    .doc-header::after {
+      content: '';
+      position: absolute;
+      bottom: 0; left: 0; right: 0; height: 3px;
+      background: linear-gradient(90deg, var(--amber), #ef4444, var(--blue));
+    }
+    .doc-tag {
+      display: inline-block;
+      background: rgba(245,158,11,.15);
+      border: 1px solid rgba(245,158,11,.3);
+      color: var(--amber);
+      padding: 4px 14px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+    .doc-title {
+      font-size: 2rem;
+      font-weight: 800;
+      margin-bottom: 8px;
+      line-height: 1.2;
+    }
+    .doc-title span { color: var(--amber); }
+    .doc-meta {
+      font-size: 13px;
+      color: #94a3b8;
+      display: flex;
+      gap: 24px;
+      flex-wrap: wrap;
+      margin-top: 16px;
+    }
+    .doc-meta strong { color: #cbd5e1; }
+
+    /* ── LAYOUT ── */
+    .container { max-width: 900px; margin: 0 auto; padding: 40px 24px 80px; }
+
+    /* ── SUMMARY BOX ── */
+    .exec-summary {
+      background: var(--dark2);
+      border: 1px solid rgba(245,158,11,.25);
+      border-radius: 10px;
+      padding: 24px 28px;
+      margin-bottom: 40px;
+      color: #e2e8f0;
+    }
+    .exec-summary h2 {
+      color: var(--amber);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      margin-bottom: 14px;
+    }
+    .exec-summary p { font-size: 14px; line-height: 1.75; color: #cbd5e1; }
+
+    /* ── SCORE CHIPS ── */
+    .score-row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 18px;
+    }
+    .chip {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .chip-red    { background: rgba(220,38,38,.15);  border: 1px solid rgba(220,38,38,.3);  color: #fca5a5; }
+    .chip-orange { background: rgba(217,119,6,.15);  border: 1px solid rgba(217,119,6,.3);  color: #fcd34d; }
+    .chip-green  { background: rgba(22,163,74,.15);  border: 1px solid rgba(22,163,74,.3);  color: #86efac; }
+    .chip-blue   { background: rgba(37,99,235,.15);  border: 1px solid rgba(37,99,235,.3);  color: #93c5fd; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; }
+    .dot-red    { background: #ef4444; }
+    .dot-orange { background: #f59e0b; }
+    .dot-green  { background: #22c55e; }
+    .dot-blue   { background: #60a5fa; }
+
+    /* ── SECTION ── */
+    .section {
+      margin-bottom: 48px;
+    }
+    .section-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--amber);
+      margin-bottom: 6px;
+    }
+    .section-title {
+      font-size: 1.4rem;
+      font-weight: 800;
+      color: var(--dark);
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid var(--border);
+    }
+    .section-title span { color: var(--amber); }
+
+    /* ── CARDS ── */
+    .card {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px 24px;
+      margin-bottom: 14px;
+    }
+    .card-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--dark);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .card-body {
+      font-size: 14px;
+      color: #475569;
+      line-height: 1.75;
+    }
+
+    /* ── ALERT CARDS ── */
+    .alert {
+      border-radius: 8px;
+      padding: 16px 20px;
+      margin-bottom: 14px;
+      border-left: 4px solid;
+      font-size: 14px;
+      line-height: 1.7;
+    }
+    .alert-red    { background: var(--red-light);    border-color: var(--red);    color: #7f1d1d; }
+    .alert-orange { background: var(--orange-light); border-color: var(--orange); color: #78350f; }
+    .alert-green  { background: var(--green-light);  border-color: var(--green);  color: #14532d; }
+    .alert-blue   { background: var(--blue-light);   border-color: var(--blue);   color: #1e3a8a; }
+    .alert strong { font-weight: 700; }
+
+    /* ── TABLE ── */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0;
+      font-size: 13.5px;
+    }
+    thead tr { background: var(--dark); color: #fff; }
+    thead th {
+      padding: 12px 16px;
+      text-align: left;
+      font-weight: 700;
+      font-size: 12px;
+      letter-spacing: .5px;
+    }
+    tbody tr { border-bottom: 1px solid var(--border); }
+    tbody tr:nth-child(even) { background: var(--slate-light); }
+    tbody td { padding: 11px 16px; vertical-align: top; color: #334155; }
+    .badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .badge-red    { background: var(--red-light);    color: var(--red); }
+    .badge-orange { background: var(--orange-light); color: var(--orange); }
+    .badge-green  { background: var(--green-light);  color: var(--green); }
+    .badge-blue   { background: var(--blue-light);   color: var(--blue); }
+
+    /* ── CHECKLIST ── */
+    .checklist { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+    .checklist li {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      font-size: 14px;
+      color: #334155;
+      line-height: 1.6;
+    }
+    .check-icon { flex-shrink: 0; font-size: 15px; margin-top: 1px; }
+
+    /* ── ACTION PLAN ── */
+    .action-card {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 18px 22px;
+      margin-bottom: 12px;
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 16px;
+      align-items: start;
+    }
+    .action-num {
+      width: 32px;
+      height: 32px;
+      background: var(--amber);
+      color: var(--dark);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+    .action-body h4 { font-size: 14px; font-weight: 700; color: var(--dark); margin-bottom: 4px; }
+    .action-body p  { font-size: 13px; color: var(--slate); line-height: 1.6; }
+    .action-prio {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 4px;
+      white-space: nowrap;
+    }
+
+    /* ── SEPARATOR ── */
+    .sep { border: none; border-top: 1px dashed var(--border); margin: 32px 0; }
+
+    /* ── FOOTER ── */
+    .doc-footer {
+      background: var(--dark);
+      color: #64748b;
+      text-align: center;
+      padding: 24px;
+      font-size: 12px;
+      margin-top: 60px;
+    }
+    .doc-footer strong { color: #94a3b8; }
+
+    /* ── PRINT ── */
+    @media print {
+      body { font-size: 12px; background: #fff; }
+      .doc-header { background: #0f172a !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .exec-summary { background: #1e293b !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .container { padding: 20px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="doc-header">
+  <div class="doc-tag">Analyse Juridique &amp; Réglementaire</div>
+  <h1 class="doc-title">BailSafe — Analyse <span>RGPD</span> &amp; AI Act</h1>
+  <div class="doc-meta">
+    <div><strong>Projet :</strong> BailSafe — Audit anti-fraude locatif</div>
+    <div><strong>Auteur outil :</strong> Nolan Bunet — bunetnolan@gmail.com</div>
+    <div><strong>Rédigé par :</strong> Dr Page (Olivier Dufour)</div>
+    <div><strong>Date :</strong> 29 juin 2026</div>
+    <div><strong>Version :</strong> 1.0 — Confidentiel</div>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- EXECUTIVE SUMMARY -->
+  <div class="exec-summary">
+    <h2>📋 Synthèse exécutive</h2>
+    <p>
+      BailSafe est un outil d'analyse forensique documentaire destiné aux bailleurs, leur permettant
+      de détecter des anomalies (Photoshop, incohérences financières, manipulation de PDF) dans les
+      dossiers de candidature locative. Il opère en Guadeloupe (DOM français), donc sous plein droit
+      européen : RGPD et AI Act s'appliquent intégralement.
+    </p>
+    <p style="margin-top:10px">
+      L'outil traite des données personnelles de <strong>tiers non-parties</strong> (les candidats
+      locataires) sur instruction du bailleur-commanditaire. C'est là que réside l'essentiel du risque
+      réglementaire. Par ailleurs, bien que BailSafe repose sur des règles déterministes, son
+      <em>scoring de risque</em> et son impact sur l'accès au logement le placent dans un angle mort
+      réglementaire à surveiller avec l'AI Act.
+    </p>
+    <div class="score-row">
+      <div class="chip chip-red"><div class="dot dot-red"></div>RGPD — 3 non-conformités critiques</div>
+      <div class="chip chip-orange"><div class="dot dot-orange"></div>RGPD — 4 points à corriger</div>
+      <div class="chip chip-green"><div class="dot dot-green"></div>RGPD — 5 éléments conformes</div>
+      <div class="chip chip-blue"><div class="dot dot-blue"></div>AI Act — Risque de requalification haut risque</div>
+    </div>
+  </div>
+
+
+  <!-- ══════════════════════════════════════════════ -->
+  <!--                  PARTIE 1 : RGPD              -->
+  <!-- ══════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-label">// Partie 01</div>
+    <h2 class="section-title">Analyse <span>RGPD</span></h2>
+
+    <!-- 1.1 — Cartographie des traitements -->
+    <div class="card">
+      <div class="card-title">🗺️ 1.1 — Cartographie des traitements</div>
+      <div class="card-body">
+        <table>
+          <thead>
+            <tr>
+              <th>Traitement</th>
+              <th>Données concernées</th>
+              <th>Personne concernée</th>
+              <th>Base légale</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Formulaire de commande vitrine</td>
+              <td>Nom, email, téléphone, type de document</td>
+              <td>Bailleur (commanditaire)</td>
+              <td>Exécution du contrat (art. 6.1.b)</td>
+            </tr>
+            <tr>
+              <td>Analyse forensique du PDF</td>
+              <td>Documents personnels du candidat (fiche de paie, avis d'imposition, contrat, relevé bancaire)</td>
+              <td>Candidat locataire (tiers)</td>
+              <td>Intérêt légitime du bailleur (art. 6.1.f) — à articuler rigoureusement</td>
+            </tr>
+            <tr>
+              <td>Génération et envoi du rapport</td>
+              <td>Verdict + données extraites du PDF</td>
+              <td>Bailleur + candidat (indirectement)</td>
+              <td>Exécution du contrat (art. 6.1.b)</td>
+            </tr>
+            <tr>
+              <td>Envoi email SMTP</td>
+              <td>Adresse email, rapport PDF en pièce jointe</td>
+              <td>Bailleur</td>
+              <td>Exécution du contrat (art. 6.1.b)</td>
+            </tr>
+          </tbody>
+        </table>
+        <p>
+          ⚠️ Les relevés bancaires constituent des <strong>données financières sensibles</strong>.
+          Les fiches de paie et avis d'imposition révèlent le niveau de revenu. Ces catégories
+          nécessitent une vigilance accrue même si elles ne sont pas des données "sensibles"
+          au sens strict de l'art. 9 RGPD.
+        </p>
+      </div>
+    </div>
+
+    <!-- 1.2 — Ce qui est conforme -->
+    <div class="card">
+      <div class="card-title">✅ 1.2 — Points de conformité existants</div>
+      <div class="card-body">
+        <ul class="checklist">
+          <li><span class="check-icon">✅</span><span><strong>Pas de décision automatisée (art. 22) :</strong> Bien mentionné dans le rapport PDF et la page privacy. Le rapport est explicitement consultatif, la décision appartient au bailleur. Formulation correcte.</span></li>
+          <li><span class="check-icon">✅</span><span><strong>Durée de conservation courte :</strong> 30 jours mentionnés. Les PDF sont traités en mémoire (BytesIO) et la session Streamlit expire → pas de stockage persistant côté appli. Bonne pratique de privacy by design.</span></li>
+          <li><span class="check-icon">✅</span><span><strong>Checkbox de consentement dans le formulaire :</strong> Présente avec libellé explicite reprenant les données traitées, la durée et les droits de la personne.</span></li>
+          <li><span class="check-icon">✅</span><span><strong>Mention du décret n°2015-1437 :</strong> BailSafe rappelle que seuls les documents légalement exigibles peuvent être transmis. Cadre légal locatif respecté.</span></li>
+          <li><span class="check-icon">✅</span><span><strong>Protection de l'interface expert :</strong> Mot de passe via variable d'environnement (EXPERT_PASSWORD). L'interface exposant les données des candidats n'est pas publique.</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- 1.3 — Non-conformités critiques -->
+    <div class="section-label" style="margin-top:24px">Non-conformités critiques</div>
+
+    <div class="alert alert-red">
+      <strong>🔴 NC#1 — Absence d'information des candidats locataires (art. 13 &amp; 14 RGPD)</strong><br/><br/>
+      Le candidat locataire est la <strong>principale personne concernée</strong> par le traitement
+      (ses données sont analysées). Or il n'est ni collecteur ni signataire du formulaire.
+      La mention actuelle ("vous devez l'en informer") transfère la responsabilité au bailleur
+      sans lui fournir les outils. <br/><br/>
+      L'art. 14 RGPD impose d'informer la personne concernée lors de la collecte indirecte :
+      identité du RT, finalité, base légale, droits, destinataires. Cette obligation est transférée
+      au bailleur, mais BailSafe doit lui fournir un <strong>modèle d'information standardisé</strong>
+      à remettre au candidat avant toute transmission de documents.
+    </div>
+
+    <div class="alert alert-red">
+      <strong>🔴 NC#2 — Transfert hors UE via Formspree (art. 44-49 RGPD)</strong><br/><br/>
+      Le formulaire de commande vitrine utilise <strong>Formspree</strong> (service américain,
+      hébergement US). Depuis l'invalidation du Privacy Shield (Schrems II, 2020), tout transfert
+      de données personnelles vers les États-Unis sans mécanisme de protection adéquat est illégal.
+      Il faut soit : (a) signer un DPA + Clauses Contractuelles Types avec Formspree,
+      (b) vérifier si Formspree a un traitement UE disponible, ou (c) remplacer Formspree
+      par un service hébergé dans l'UE (EmailJS EU, Brevo, etc.).
+    </div>
+
+    <div class="alert alert-red">
+      <strong>🔴 NC#3 — Conservation réelle &gt; 30 jours via les emails (art. 5.1.e)</strong><br/><br/>
+      Le rapport PDF est envoyé par email à l'expert et au bailleur. Une fois en pièce jointe dans
+      une boîte Gmail, il échappe à la purge automatique des 30 jours et peut rester indéfiniment.
+      Ce rapport contient le hash SHA-256, les métadonnées du document et le verdict — soit une
+      empreinte partielle du dossier du candidat. La politique de "30 jours" est incomplète
+      si elle ne couvre pas les emails sortants. Il faut une procédure manuelle de suppression
+      des emails contenant les rapports, ou encoder dans le rapport une date d'expiration explicite
+      avec instruction de suppression.
+    </div>
+
+    <!-- 1.4 — Points à corriger -->
+    <div class="section-label" style="margin-top:24px">Points à corriger</div>
+
+    <div class="alert alert-orange">
+      <strong>🟠 PC#1 — Absence de Registre des Traitements (art. 30 RGPD)</strong><br/>
+      Toute entité effectuant des traitements doit tenir un registre documentant chaque traitement,
+      sa base légale, ses destinataires et sa durée de conservation. Non mentionné dans le projet.
+      Format simple (spreadsheet) suffit à ce stade.
+    </div>
+
+    <div class="alert alert-orange">
+      <strong>🟠 PC#2 — Transmission email non chiffrée (art. 32 RGPD)</strong><br/>
+      L'email SMTP Gmail (TLS en transit) n'est pas chiffré de bout en bout. Le rapport PDF
+      contenant des données personnelles du candidat est donc potentiellement lisible par des
+      intermédiaires. Recommandé : chiffrement du PDF par mot de passe avant envoi,
+      ou transmission via un lien sécurisé à durée limitée.
+    </div>
+
+    <div class="alert alert-orange">
+      <strong>🟠 PC#3 — Politique de confidentialité non accessible en page autonome</strong><br/>
+      La section #privacy est intégrée dans la SPA Streamlit. Elle n'est pas linkable directement
+      (pas d'URL permanente), ce qui complique la preuve de conformité et l'exercice des droits.
+      Un lien stable vers une page dédiée est préférable.
+    </div>
+
+    <div class="alert alert-orange">
+      <strong>🟠 PC#4 — AIPD potentiellement requise (art. 35 RGPD)</strong><br/>
+      Une Analyse d'Impact Protection des Données (AIPD / DPIA) est obligatoire lorsque le
+      traitement est susceptible d'engendrer un risque élevé pour les droits et libertés des
+      personnes. BailSafe remplit plusieurs critères déclencheurs :
+      <ul style="margin-top:8px; margin-left:16px">
+        <li>Évaluation/scoring de personnes avec des effets sur leur vie (accès au logement)</li>
+        <li>Traitement de données financières sensibles (relevés bancaires)</li>
+        <li>Traitement de données de personnes vulnérables (candidats locataires sans pouvoir de négociation)</li>
+      </ul>
+      La CNIL considère la sélection locative comme un domaine à surveiller.
+      Une AIPD formelle est fortement recommandée avant tout déploiement à grande échelle.
+    </div>
+
+    <!-- 1.5 — Hébergement -->
+    <div class="card">
+      <div class="card-title">🖥️ 1.5 — Hébergement et localisation des données</div>
+      <div class="card-body">
+        <table>
+          <thead>
+            <tr><th>Service</th><th>Localisation</th><th>Statut</th><th>Action requise</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Streamlit Cloud</td>
+              <td>AWS us-east-1 (USA par défaut)</td>
+              <td><span class="badge badge-orange">⚠️ À vérifier</span></td>
+              <td>Vérifier si région EU disponible, ou DPA Streamlit</td>
+            </tr>
+            <tr>
+              <td>Formspree</td>
+              <td>États-Unis</td>
+              <td><span class="badge badge-red">🔴 Problématique</span></td>
+              <td>Remplacer par alternative EU ou signer CCT</td>
+            </tr>
+            <tr>
+              <td>Gmail SMTP</td>
+              <td>Google Cloud (UE disponible)</td>
+              <td><span class="badge badge-green">✅ Acceptable</span></td>
+              <td>Vérifier DPA Google Workspace signé</td>
+            </tr>
+            <tr>
+              <td>Render (pour variables d'env)</td>
+              <td>AWS us-east (par défaut)</td>
+              <td><span class="badge badge-orange">⚠️ À vérifier</span></td>
+              <td>Choisir région EU si disponible</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 1.6 — Droits des candidats -->
+    <div class="card">
+      <div class="card-title">⚖️ 1.6 — Exercice des droits par les candidats locataires</div>
+      <div class="card-body">
+        <p>
+          Les candidats locataires disposent de droits d'accès, de rectification, d'effacement
+          et d'opposition (art. 15-21 RGPD). Actuellement, le seul canal disponible est
+          bunetnolan@gmail.com — ce qui est acceptable pour une petite structure, mais nécessite :
+        </p>
+        <ul style="margin-top:12px; margin-left:16px; display:flex; flex-direction:column; gap:6px">
+          <li>📌 Un délai de réponse garanti de 30 jours (art. 12)</li>
+          <li>📌 Une procédure documentée pour les demandes d'effacement (suppression du rapport PDF + email)</li>
+          <li>📌 La mention du droit de réclamation auprès de la <strong>CNIL</strong> (présente — ✅)</li>
+        </ul>
+        <p style="margin-top:12px">
+          La mention de contact est présente dans la page privacy mais devrait aussi figurer
+          dans le rapport PDF transmis au bailleur, qui est susceptible d'être partagé.
+        </p>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ══════════════════════════════════════════════ -->
+  <!--               PARTIE 2 : AI ACT               -->
+  <!-- ══════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-label">// Partie 02</div>
+    <h2 class="section-title">Analyse <span>AI Act</span></h2>
+
+    <!-- 2.1 — BailSafe est-il un système IA ? -->
+    <div class="card">
+      <div class="card-title">🤖 2.1 — BailSafe est-il un "système d'IA" au sens de l'AI Act ?</div>
+      <div class="card-body">
+        <p>
+          L'AI Act (UE 2024/1689, art. 3.1) définit un système d'IA comme un système
+          <em>"fondé sur une machine, conçu pour fonctionner avec différents niveaux d'autonomie
+          et capable de générer, à partir des entrées reçues, des résultats tels que des prévisions,
+          des recommandations ou des décisions"</em>.
+        </p>
+        <br/>
+        <p>
+          <strong>Architecture actuelle de BailSafe :</strong> règles déterministes (regex,
+          hashing SHA-256, détection de mots-clés dans les métadonnées, seuils fixes). Il n'y a
+          ni apprentissage automatique, ni inférence probabiliste, ni modèle entraîné.
+        </p>
+        <br/>
+        <div class="alert alert-blue" style="margin:0">
+          <strong>Conclusion :</strong> Tel qu'il est actuellement codé, BailSafe est probablement
+          un <strong>logiciel à base de règles</strong>, pas un "système d'IA" au sens strict.
+          Cependant, le Considérant 12 de l'AI Act précise que les systèmes exclusivement basés
+          sur des règles définies par des humains <strong>ne sont pas des systèmes IA</strong>.
+          Cette distinction est un garde-fou important. Il faut l'<strong>expliciter dans la
+          documentation technique</strong> pour éviter toute requalification par une autorité.
+        </div>
+      </div>
+    </div>
+
+    <!-- 2.2 — Risque de requalification -->
+    <div class="alert alert-orange">
+      <strong>🟠 Risque de requalification — Attention à l'évolution du produit</strong><br/><br/>
+      Si Nolan intègre dans le futur : un modèle de scoring ML, une détection d'anomalies
+      par apprentissage non supervisé, ou une analyse sémantique des textes des documents,
+      BailSafe basculera automatiquement dans le périmètre de l'AI Act. Ce risque doit être
+      anticipé dès maintenant dans les choix d'architecture.
+    </div>
+
+    <!-- 2.3 — Qualification si IA -->
+    <div class="card">
+      <div class="card-title">⚠️ 2.2 — Qualification si BailSafe est requalifié en système IA</div>
+      <div class="card-body">
+        <p>
+          L'Annexe III de l'AI Act liste les systèmes IA à <strong>haut risque</strong>.
+          Deux catégories sont pertinentes pour BailSafe :
+        </p>
+        <table style="margin-top:14px">
+          <thead>
+            <tr><th>Catégorie Annexe III</th><th>Description</th><th>Pertinence BailSafe</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Section 5(b)</strong></td>
+              <td>Systèmes évaluant la solvabilité ou établissant un score de crédit</td>
+              <td><span class="badge badge-orange">⚠️ Partielle</span> — BailSafe évalue l'authenticité, pas la solvabilité per se, mais influence la décision d'accès au logement</td>
+            </tr>
+            <tr>
+              <td><strong>Section 5(c) / services essentiels</strong></td>
+              <td>Systèmes prenant des décisions sur l'accès à des services essentiels (incluant le logement)</td>
+              <td><span class="badge badge-red">🔴 Fort</span> — Le logement est un service essentiel. BailSafe influence directement la décision d'accès.</td>
+            </tr>
+          </tbody>
+        </table>
+        <p style="margin-top:14px">
+          ⚠️ La CNIL a publié des recommandations sur l'IA dans la sélection locative.
+          Le fait que la décision finale reste humaine (bailleur) est un facteur atténuant,
+          mais l'AI Act précise que les systèmes <em>influençant</em> les décisions humaines
+          restent dans le périmètre.
+        </p>
+      </div>
+    </div>
+
+    <!-- 2.4 — Obligations si haut risque -->
+    <div class="card">
+      <div class="card-title">📋 2.3 — Obligations si qualification "haut risque" (pour anticipation)</div>
+      <div class="card-body">
+        <table>
+          <thead>
+            <tr><th>Obligation</th><th>Art. AI Act</th><th>Statut BailSafe</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Système de gestion des risques documenté</td>
+              <td>Art. 9</td>
+              <td><span class="badge badge-red">Absent</span></td>
+            </tr>
+            <tr>
+              <td>Documentation technique complète</td>
+              <td>Art. 11 + Annexe IV</td>
+              <td><span class="badge badge-orange">Partielle</span> (README présent, insuffisant)</td>
+            </tr>
+            <tr>
+              <td>Journaux des interactions (logs)</td>
+              <td>Art. 12</td>
+              <td><span class="badge badge-red">Absent</span> — logs uniquement en console</td>
+            </tr>
+            <tr>
+              <td>Transparence envers l'utilisateur</td>
+              <td>Art. 13</td>
+              <td><span class="badge badge-green">Présent</span> — mention "avis consultatif"</td>
+            </tr>
+            <tr>
+              <td>Supervision humaine obligatoire</td>
+              <td>Art. 14</td>
+              <td><span class="badge badge-green">Présent</span> — décision bailleur explicite</td>
+            </tr>
+            <tr>
+              <td>Exactitude, robustesse, cybersécurité</td>
+              <td>Art. 15</td>
+              <td><span class="badge badge-orange">À documenter</span> — limites (scan rescané) mentionnées</td>
+            </tr>
+            <tr>
+              <td>Enregistrement dans la base EU</td>
+              <td>Art. 71</td>
+              <td><span class="badge badge-red">Non applicable</span> (non IA aujourd'hui)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 2.5 — Discrimination -->
+    <div class="card">
+      <div class="card-title">⚖️ 2.4 — Risque de discrimination indirecte</div>
+      <div class="card-body">
+        <p>
+          La loi Égalité et Citoyenneté (2017) et l'art. 5.1.d du RGPD interdisent les décisions
+          discriminatoires liées à l'origine, la situation financière, etc. BailSafe analyse
+          l'<em>authenticité du document</em>, pas la personne — ce qui est une protection forte.
+        </p>
+        <br/>
+        <p>
+          Risque résiduel : un <strong>faux positif</strong> (document légitime détecté comme
+          suspect) peut entraîner un refus injustifié. Si ce faux positif touche
+          disproportionnellement certains groupes (ex. personnes utilisant des logiciels PDF
+          non standards dans certains pays), cela constitue une discrimination indirecte.
+        </p>
+        <br/>
+        <div class="alert alert-blue" style="margin:0">
+          <strong>Recommandation :</strong> Documenter le taux de faux positifs constaté et
+          maintenir une mention explicite que tout verdict suspect doit faire l'objet d'une
+          vérification humaine complémentaire avant tout refus (déjà présent — bien).
+          Envisager un mécanisme de contestation du rapport par le candidat.
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ══════════════════════════════════════════════ -->
+  <!--              PLAN D'ACTION PRIORISÉ            -->
+  <!-- ══════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-label">// Partie 03</div>
+    <h2 class="section-title">Plan d'action <span>priorisé</span></h2>
+
+    <div class="alert alert-red" style="margin-bottom:20px">
+      <strong>🔴 Critique — À traiter avant tout déploiement commercial</strong>
+    </div>
+
+    <div class="action-card">
+      <div class="action-num">1</div>
+      <div class="action-body">
+        <h4>Créer le modèle d'information candidat (art. 14)</h4>
+        <p>Rédiger un texte court (½ page) que le bailleur remet au candidat avant de transmettre ses documents à BailSafe. Doit contenir : identité de BailSafe, finalité, base légale, durée, droits et contact. Format : PDF ou email type à copier-coller.</p>
+      </div>
+      <div class="action-prio badge badge-red">CRITIQUE</div>
+    </div>
+
+    <div class="action-card">
+      <div class="action-num">2</div>
+      <div class="action-body">
+        <h4>Remplacer Formspree par un service hébergé en UE</h4>
+        <p>Options : Brevo (anciennement Sendinblue, hébergement FR/UE), EmailJS avec serveur EU, ou formulaire HTML + endpoint propre hébergé sur Render EU. Toute solution doit avoir un DPA disponible et signé.</p>
+      </div>
+      <div class="action-prio badge badge-red">CRITIQUE</div>
+    </div>
+
+    <div class="action-card">
+      <div class="action-num">3</div>
+      <div class="action-body">
+        <h4>Mettre en place une procédure de purge des emails</h4>
+        <p>Créer un label Gmail dédié "BailSafe/Rapports" + règle de suppression automatique à 30 jours via Google Workspace ou script Apps Script. Documenter la procédure dans les CGV/privacy policy.</p>
+      </div>
+      <div class="action-prio badge badge-red">CRITIQUE</div>
+    </div>
+
+    <hr class="sep"/>
+
+    <div class="alert alert-orange" style="margin-bottom:20px">
+      <strong>🟠 Important — À traiter dans les 30 jours</strong>
+    </div>
+
+    <div class="action-card">
+      <div class="action-num">4</div>
+      <div class="action-body">
+        <h4>Créer le Registre des Traitements (art. 30)</h4>
+        <p>Tableur simple : nom du traitement, finalité, base légale, catégories de données, personnes concernées, destinataires, durée de conservation, mesures de sécurité. La CNIL fournit un modèle gratuit sur son site.</p>
+      </div>
+      <div class="action-prio badge badge-orange">IMPORTANT</div>
+    </div>
+
+    <div class="action-card">
+      <div class="action-num">5</div>
+      <div class="action-body">
+        <h4>Chiffrer les rapports PDF avant envoi email</h4>
+        <p>Avec ReportLab (déjà utilisé), ajouter un mot de passe au PDF. Transmettre le mot de passe séparément (SMS ou email distinct). Alternative : envoyer un lien sécurisé à durée limitée plutôt qu'une pièce jointe.</p>
+      </div>
+      <div class="action-prio badge badge-orange">IMPORTANT</div>
+    </div>
+
+    <div class="action-card">
+      <div class="action-num">6</div>
+      <div class="action-body">
+        <h4>Vérifier et confirmer la localisation UE de l'hébergement</h4>
+        <p>Streamlit Cloud : vérifier si déployé sur AWS eu-west. Render : choisir une région européenne. Documenter la localisation dans la politique de confidentialité avec le nom du sous-traitant.</p>
+      </div>
+      <div class="action-prio badge badge-orange">IMPORTANT</div>
+    </div>
+
+    <div class="action-card">
+      <div class="action-num">7</div>
+      <div class="action-body">
+        <h4>Réaliser une AIPD simplifiée</h4>
+        <p>Utiliser le modèle CNIL PIA (outil gratuit disponible sur cnil.fr). Documenter les risques, les mesures de mitigation et la conclusion. Conserver le document. Obligatoire si BailSafe se déploie à plus de 50 dossiers/mois.</p>
+      </div>
+      <div class="action-prio badge badge-orange">IMPORTANT</div>
+    </div>
+
+    <hr class="sep"/>
+
+    <div class="alert alert-blue" style="margin-bottom:20px">
+      <strong>🔵 Anticipation AI Act — À traiter avant toute évolution vers du ML</strong>
+    </div>
+
+    <div class="action-card">
+      <div class="action-num">8</div>
+      <div class="action-body">
+        <h4>Documenter formellement la nature "règles déterministes" de BailSafe</h4>
+        <p>Rédiger une note technique d'une page expliquant pourquoi BailSafe n'est pas un système IA au sens de l'AI Act (absence d'apprentissage, règles fixes définies par l'humain). Conserver ce document avec l'AIPD.</p>
+      </div>
+      <div class="action-prio badge badge-blue">ANTICIPATION</div>
+    </div>
+
+    <div class="action-card">
+      <div class="action-num">9</div>
+      <div class="action-body">
+        <h4>Implémenter des logs d'audit structurés</h4>
+        <p>Remplacer les print/logger.info par des logs horodatés incluant : hash du fichier analysé (jamais le fichier lui-même), score de risque, verdict, date. Stocker 30 jours. Utile pour prouver la conformité et anticiper les obligations de traçabilité AI Act.</p>
+      </div>
+      <div class="action-prio badge badge-blue">ANTICIPATION</div>
+    </div>
+  </div>
+
+
+  <!-- ══════════════════════════════════════════════ -->
+  <!--                  CONCLUSION                   -->
+  <!-- ══════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-label">// Conclusion</div>
+    <h2 class="section-title">Synthèse <span>&amp; verdict</span></h2>
+
+    <div class="card">
+      <div class="card-body">
+        <p>
+          BailSafe est un projet <strong>bien intentionné sur le plan de la conformité</strong> :
+          la mention "aucune décision automatisée", la durée de conservation de 30 jours, la
+          checkbox de consentement et la référence au décret 2015-1437 montrent une sensibilité
+          réelle au RGPD. C'est une base solide.
+        </p>
+        <br/>
+        <p>
+          Le problème central est que <strong>BailSafe traite des données de tiers (les candidats)
+          sans lien contractuel direct avec eux</strong>. C'est le point de risque le plus élevé.
+          L'information des candidats (art. 14) et la gestion des transferts hors UE (Formspree)
+          sont les deux chantiers prioritaires absolus.
+        </p>
+        <br/>
+        <p>
+          Sur l'AI Act : à ce stade, BailSafe n'est pas un système IA. Mais son positionnement
+          dans la sélection locative le place dans un domaine sensible où toute évolution vers
+          du machine learning déclencherait automatiquement des obligations lourdes.
+          <strong>Anticiper maintenant coûte peu ; subir une requalification coûte cher.</strong>
+        </p>
+        <br/>
+        <div class="alert alert-green" style="margin:0">
+          <strong>✅ Effort estimé pour atteindre la conformité :</strong> 2 à 3 jours de travail
+          répartis sur un mois. Aucune refonte architecturale majeure n'est nécessaire. Les 3
+          points critiques (information candidat, Formspree, purge emails) peuvent être traités
+          rapidement sans toucher au cœur de l'application.
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /container -->
+
+<footer class="doc-footer">
+  <p>
+    <strong>BailSafe — Analyse RGPD &amp; AI Act</strong> · Rédigé par Dr Page (Olivier Dufour) · 29 juin 2026
+  </p>
+  <p style="margin-top:6px">
+    Ce document est un avis consultatif. Pour une consultation juridique opposable, solliciter un avocat spécialisé en droit des données personnelles.
+  </p>
+</footer>
+
+</body>
+</html>
