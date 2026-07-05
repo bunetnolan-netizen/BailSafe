@@ -45,27 +45,55 @@ exports.handler = async (event) => {
     <p><strong>Renonciation rétractation :</strong> ${escapeHtml(retractation_renoncement || '')}</p>
   `;
 
-  try {
-    const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+  const sendBrevoEmail = (payload) =>
+    fetch('https://api.brevo.com/v3/smtp/email', {
       method: 'POST',
       headers: {
         'api-key': apiKey,
         'Content-Type': 'application/json',
         Accept: 'application/json'
       },
-      body: JSON.stringify({
-        sender: { name: senderName, email: senderEmail },
-        to: [{ email: notifEmail }],
-        replyTo: { email, name },
-        subject: `Nouvelle commande BailSafe — ${name}`,
-        htmlContent
-      })
+      body: JSON.stringify(payload)
+    });
+
+  try {
+    const res = await sendBrevoEmail({
+      sender: { name: senderName, email: senderEmail },
+      to: [{ email: notifEmail }],
+      replyTo: { email, name },
+      subject: `Nouvelle commande BailSafe — ${name}`,
+      htmlContent
     });
 
     if (!res.ok) {
       const errText = await res.text();
-      console.error('Erreur Brevo:', res.status, errText);
+      console.error('Erreur Brevo (notification Nolan):', res.status, errText);
       return { statusCode: 502, body: JSON.stringify({ error: 'Envoi impossible' }) };
+    }
+
+    // Email de confirmation au client avec les prochaines étapes — filet de sécurité si
+    // le client ferme l'onglet avant d'avoir lu les instructions affichées à l'écran.
+    // Échec non bloquant : la commande est déjà enregistrée côté Nolan à ce stade.
+    try {
+      const confirmRes = await sendBrevoEmail({
+        sender: { name: senderName, email: senderEmail },
+        to: [{ email, name }],
+        subject: 'Votre commande BailSafe — 2 étapes restantes',
+        htmlContent: `
+          <h2>Merci ${escapeHtml(name)}, votre demande est bien reçue !</h2>
+          <p>Il vous reste 2 étapes pour lancer l'analyse :</p>
+          <p><strong>1. Payez 39 €</strong> via PayPal : <a href="https://paypal.me/NolanBunet/39EUR">https://paypal.me/NolanBunet/39EUR</a></p>
+          <p><strong>2. Envoyez le PDF</strong> à auditer par email à
+            <a href="mailto:bunetnolan@gmail.com?subject=Document%20à%20auditer%20-%20BailSafe">bunetnolan@gmail.com</a>,
+            en précisant le même nom que dans le formulaire (${escapeHtml(name)}).</p>
+          <p>Rapport livré sous 24h après réception du paiement <u>et</u> du document.</p>
+        `
+      });
+      if (!confirmRes.ok) {
+        console.error('Erreur Brevo (confirmation client):', confirmRes.status, await confirmRes.text());
+      }
+    } catch (err) {
+      console.error('Erreur envoi confirmation client:', err);
     }
 
     return { statusCode: 200, body: JSON.stringify({ ok: true }) };
