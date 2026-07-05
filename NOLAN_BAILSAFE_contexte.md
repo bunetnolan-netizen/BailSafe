@@ -5,9 +5,12 @@
 **Projet** : BailSafe — Outil d'audit anti-fraude documentaire pour bailleurs  
 **Auteur** : Nolan Bunet — bunetnolan@gmail.com — Sainte-Rose, Guadeloupe  
 **Repo GitHub** : https://github.com/bunetnolan-netizen/BailSafe/tree/main  
-**Stack** : Python + Streamlit, deux apps séparées (vitrine publique + interface expert)  
-**Prix** : 39 € TTC par audit  
-**Statut** : En production / déploiement Streamlit Cloud
+**Stack** : `index.html` standalone (vitrine, sur Netlify) + Python/Streamlit `app_expert.py` (interface d'analyse, sur Render)  
+**Prix (3 formules depuis le 5 juillet 2026)** : Essentiel 59 €, Sécurisé 129 €, Dossier Complet 229 € TTC  
+**Statut** : En production — vitrine sur Netlify (https://bail-safe.netlify.app/), interface expert sur Render.
+Note : ce document détaille encore le code de l'ancien `app_vitrine.py` (Streamlit) plus bas —
+ce fichier est **archivé** dans `archive/`, remplacé par `index.html`. Voir `CLAUDE.md` pour
+l'état actuel du projet.
 
 ---
 
@@ -25,10 +28,10 @@ bailsafe/
 ```
 
 **Principe de fonctionnement :**
-1. Le client commande sur la vitrine (LeBonCoin, Facebook, ou formulaire direct)
-2. Il paie 39 € via PayPal
-3. Il envoie son PDF par email/upload
-4. Nolan ouvre l'interface expert, uploade le PDF, génère le rapport PDF
+1. Le client commande sur la vitrine (https://bail-safe.netlify.app/) et choisit une formule
+2. Il paie 59 €, 129 € ou 229 € via PayPal selon la formule choisie
+3. Il envoie son ou ses documents par email
+4. Nolan ouvre l'interface expert, uploade le(s) document(s), génère le rapport PDF
 5. Le rapport est envoyé au client par email via Gmail SMTP
 
 ---

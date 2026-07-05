@@ -1,16 +1,20 @@
 # BailSafe — Fiche Contexte Projet
 
-**Dernière mise à jour :** 29 juin 2026  
+**Dernière mise à jour :** 5 juillet 2026  
 **Créateur :** Nolan Bunet — bunetnolan@gmail.com — Sainte-Rose, Guadeloupe
 
 ---
 
 ## C'est quoi
 
-Service d'audit anti-fraude documentaire pour propriétaires bailleurs. Le client envoie un PDF (fiche de paie, avis d'imposition, contrat de travail, relevé bancaire) — BailSafe réalise une analyse forensique et renvoie un rapport PDF sous 24h.
+Service d'audit anti-fraude documentaire pour propriétaires bailleurs. Le client envoie un ou plusieurs documents (fiche de paie, avis d'imposition, contrat de travail, relevé bancaire) — BailSafe réalise une analyse forensique et renvoie un rapport PDF sous 24h.
 
-**Prix :** 39 € TTC par dossier  
-**Paiement :** PayPal uniquement — paypal.me/NolanBunet/39EUR
+**Prix (3 formules depuis le 5 juillet 2026) :**
+- Essentiel — 59 € TTC (1 document)
+- Sécurisé — 129 € TTC (2 documents, cohérence croisée)
+- Dossier Complet — 229 € TTC (jusqu'à 4 documents, traitement prioritaire)
+
+**Paiement :** PayPal uniquement — paypal.me/NolanBunet (montant ajusté dynamiquement selon la formule choisie, ex. paypal.me/NolanBunet/129EUR)
 
 ---
 
@@ -60,7 +64,7 @@ Service d'audit anti-fraude documentaire pour propriétaires bailleurs. Le clien
 
 1. Client arrive sur la vitrine (https://bail-safe.netlify.app/)
 2. Remplit le formulaire → envoi via la fonction Netlify → **Brevo** → Nolan reçoit un email
-3. Client est redirigé vers le bouton PayPal pour payer 39 €
+3. Client est redirigé vers le bouton PayPal pour payer le montant de la formule choisie (59 €, 129 € ou 229 €)
 4. Nolan reçoit le paiement PayPal → récupère le PDF du client par email
 5. Nolan dépose le PDF dans **app_expert** → analyse automatique
 6. Nolan télécharge le rapport PDF généré → l'envoie au client par email
@@ -182,7 +186,7 @@ Service d'audit anti-fraude documentaire pour propriétaires bailleurs. Le clien
 | Quoi | Valeur |
 |---|---|
 | Email Nolan | bunetnolan@gmail.com |
-| PayPal | paypal.me/NolanBunet/39EUR |
+| PayPal | paypal.me/NolanBunet (montant variable selon la formule) |
 | GitHub | github.com/bunetnolan-netizen/BailSafe |
 | Facebook | https://www.facebook.com/share/1KKBK1mfpV/ |
 | Vitrine actuelle | https://bail-safe.netlify.app/ |

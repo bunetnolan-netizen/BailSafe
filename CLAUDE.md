@@ -1,6 +1,6 @@
 # BailSafe — Instructions pour Claude Code
 
-**Projet :** BailSafe — audit anti-fraude documentaire pour bailleurs (39 € TTC/dossier).
+**Projet :** BailSafe — audit anti-fraude documentaire pour bailleurs (3 formules : Essentiel 59 €, Sécurisé 129 €, Dossier Complet 229 € TTC).
 **Auteur :** Nolan Bunet — bunetnolan@gmail.com — Sainte-Rose, Guadeloupe.
 **Repo :** https://github.com/bunetnolan-netizen/BailSafe (branche `main`).
 **Vitrine en ligne :** https://bail-safe.netlify.app/ (attention à ne pas confondre avec
