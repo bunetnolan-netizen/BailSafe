@@ -26,8 +26,9 @@ d'entrée résumé + le journal de bord des sessions.
   à chaque fois, sauf pour des opérations destructives (force-push, réécriture d'historique,
   suppression de branche) qui restent à confirmer avec Nolan au préalable.
 - La vitrine publique (`index.html`) est déployée sur **Netlify** : https://bail-safe.netlify.app/
-  (confirmé par Nolan le 4 juillet 2026 — pas de migration à faire, contrairement à ce
-  qu'indiquaient les anciennes notes de `BAILSAFE_CONTEXTE.md`/`NOLAN_BAILSAFE_contexte.md`).
+  — **connectée au dépôt GitHub pour l'auto-déploiement** (confirmé par Nolan le 4 juillet
+  2026). Chaque push sur `main` redéploie automatiquement la vitrine, comme Render pour
+  `app_expert.py`. Plus besoin de redéployer manuellement ni de vérifier ce point.
 - Les TODOs bloquants (ID Formspree placeholder, URL Render, mot de passe expert...) sont
   listés dans `BAILSAFE_CONTEXTE.md` — ne pas les inventer, demander à Nolan les valeurs réelles.
 - RGPD : conservation 30 jours max, aucune décision automatisée (art. 22), information
@@ -63,7 +64,8 @@ date, ce qui a été fait, ce qui reste en TODO manuel pour Nolan. Garde chaque 
   `download` (upload accidentel) et d'un `app_vitrine.py` racine obsolète (doublon de la
   version archivée). Premier push effectué avec succès.
 - Confirmation de Nolan : la vitrine (`index.html`) est en ligne sur **Netlify** —
-  https://bail-safe.netlify.app/ — la migration n'est plus un TODO.
+  https://bail-safe.netlify.app/ — connectée à GitHub pour l'auto-déploiement, comme Render.
+  Les deux hébergements se redéploient automatiquement à chaque push, sans action manuelle.
 
 **TODO manuels restants (hors de portée de l'agent) :**
 - Créer un vrai formulaire Formspree (ou alternative hébergée UE) et remplacer l'ID placeholder.
