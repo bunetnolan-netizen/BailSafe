@@ -19,10 +19,13 @@ d'entrée résumé + le journal de bord des sessions.
 
 ## Règles de travail
 
-- Ce dépôt n'est pas un repo git initialisé localement (`git init` pas encore fait). Ne pas
-  lancer de commandes git/push sans que Nolan le demande explicitement.
-- **GitHub : étapes manuelles uniquement.** Nolan préfère des instructions copier-coller pour
-  l'interface web GitHub plutôt que des installs/push git automatisés par l'agent.
+- **Git/GitHub : automatisé (depuis le 4 juillet 2026).** Le dépôt local est initialisé et
+  connecté à `origin` (GitHub). Claude peut committer et pousser directement sans redemander
+  à chaque fois, sauf pour des opérations destructives (force-push, réécriture d'historique,
+  suppression de branche) qui restent à confirmer avec Nolan au préalable.
+- La vitrine publique (`index.html`) est déployée sur **Netlify** (Nolan l'a confirmé le
+  4 juillet 2026 — pas encore de migration à faire, contrairement à ce qu'indiquaient les
+  anciennes notes). Penser à noter l'URL Netlify ici dès qu'elle est connue.
 - Les TODOs bloquants (ID Formspree placeholder, URL Render, mot de passe expert...) sont
   listés dans `BAILSAFE_CONTEXTE.md` — ne pas les inventer, demander à Nolan les valeurs réelles.
 - RGPD : conservation 30 jours max, aucune décision automatisée (art. 22), information
@@ -48,8 +51,19 @@ date, ce qui a été fait, ce qui reste en TODO manuel pour Nolan. Garde chaque 
 - `app_vitrine.py` déplacé dans `archive/` (doublon de `index.html`, contenait un lien Stripe
   de test) — déplacé et non supprimé pour rester réversible.
 - Création de ce `CLAUDE.md` comme point d'entrée résumé + journal de session.
+- Configuration Claude Code : permissions PowerShell élargies (`Get-ChildItem`, `Test-Path`,
+  `python *`), hook de vérification syntaxe auto sur `app_expert.py` (inactif tant que Python
+  n'est pas réellement installé — seul le stub Windows Store est présent).
+- **Passage à Git/GitHub automatisé** : Git for Windows installé, dépôt local initialisé et
+  relié à `origin`. Historique GitHub existant (60+ commits "Update X.py" issus de l'ancien
+  workflow copier-coller) fusionné avec `--allow-unrelated-histories -X ours` pour préserver
+  la traçabilité sans perdre l'état local. Nettoyage au passage : suppression d'un fichier
+  `download` (upload accidentel) et d'un `app_vitrine.py` racine obsolète (doublon de la
+  version archivée). Premier push effectué avec succès.
+- Confirmation de Nolan : la vitrine (`index.html`) est déjà en ligne sur **Netlify** — la
+  migration n'est plus un TODO.
 
 **TODO manuels restants (hors de portée de l'agent) :**
 - Créer un vrai formulaire Formspree (ou alternative hébergée UE) et remplacer l'ID placeholder.
 - Finaliser le déploiement Render et renseigner son URL dans `BAILSAFE_CONTEXTE.md`.
-- Décider si `archive/app_vitrine.py` doit être retiré du dépôt GitHub distant.
+- Noter l'URL Netlify de la vitrine ici une fois confirmée.
