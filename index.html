@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
     <title>BailSafe | Détection de Fraude Documentaire — Analyse Forensique</title>
-    <meta name="description" content="BailSafe détecte les fiches de paie et avis d'imposition falsifiés grâce à une analyse forensique de PDF (empreinte SHA-256, métadonnées, cohérence financière). Rapport sous 24h, 39 € TTC, pour propriétaires bailleurs.">
+    <meta name="description" content="BailSafe détecte les fiches de paie et avis d'imposition falsifiés grâce à une analyse forensique de PDF (empreinte SHA-256, métadonnées, cohérence financière). Rapport sous 24h, à partir de 59 € TTC, pour propriétaires bailleurs.">
     <meta name="robots" content="index, follow">
 
     <link rel="canonical" href="https://bail-safe.netlify.app/">
@@ -15,12 +15,12 @@
     <meta property="og:locale" content="fr_FR">
     <meta property="og:site_name" content="BailSafe">
     <meta property="og:title" content="BailSafe | Détection de fraude documentaire pour bailleurs">
-    <meta property="og:description" content="Analyse forensique de PDF (fiche de paie, avis d'imposition) pour détecter les faux dossiers de location. Rapport sous 24h, 39 € TTC.">
+    <meta property="og:description" content="Analyse forensique de PDF (fiche de paie, avis d'imposition) pour détecter les faux dossiers de location. Rapport sous 24h, à partir de 59 € TTC.">
     <meta property="og:url" content="https://bail-safe.netlify.app/">
     <!-- og:image à ajouter une fois un visuel (capture d'écran ou logo) hébergé -->
     <meta name="twitter:card" content="summary">
     <meta name="twitter:title" content="BailSafe | Détection de fraude documentaire pour bailleurs">
-    <meta name="twitter:description" content="Analyse forensique de PDF pour détecter les faux dossiers de location. Rapport sous 24h, 39 € TTC.">
+    <meta name="twitter:description" content="Analyse forensique de PDF pour détecter les faux dossiers de location. Rapport sous 24h, à partir de 59 € TTC.">
 
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='5' fill='%231C2B29'/%3E%3Cpath d='M12 3.5 L18.5 6 V11.5 C18.5 15.5 15.8 18.7 12 20.2 C8.2 18.7 5.5 15.5 5.5 11.5 V6 Z' fill='%23C9A94A'/%3E%3C/svg%3E">
 
@@ -32,7 +32,13 @@
         "description": "Analyse forensique de documents PDF (fiche de paie, avis d'imposition) pour détecter les falsifications, à destination des propriétaires bailleurs.",
         "provider": { "@type": "Person", "name": "Nolan Bunet", "email": "bunetnolan@gmail.com" },
         "areaServed": "FR",
-        "offers": { "@type": "Offer", "price": "39", "priceCurrency": "EUR" }
+        "offers": {
+            "@type": "AggregateOffer",
+            "priceCurrency": "EUR",
+            "lowPrice": "59",
+            "highPrice": "229",
+            "offerCount": "3"
+        }
     }
     </script>
 
@@ -161,6 +167,28 @@
         .author-avatar { font-family: 'IBM Plex Mono', monospace; width: 48px; height: 48px; background: var(--seal); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--text-on-ink); font-weight: 800; font-size: 16px; flex-shrink: 0; }
         .author-text { font-size: 14px; color: #4A3B1A; line-height: 1.6; }
         .author-text strong { color: #6B5320; }
+
+        .pricing-grid { display: grid; grid-template-columns: 1fr; gap: 20px; margin-top: 36px; }
+        @media (min-width: 860px) { .pricing-grid { grid-template-columns: repeat(3, 1fr); align-items: stretch; } }
+        .price-card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 28px 24px; display: flex; flex-direction: column; position: relative; transition: all 0.2s; }
+        .price-card.featured { background: var(--ink); border-color: var(--seal-light); box-shadow: 0 16px 40px rgba(28,43,41,0.28); transform: scale(1.03); z-index: 1; }
+        @media (min-width: 860px) { .price-card.featured { margin-top: -10px; margin-bottom: -10px; padding-top: 38px; padding-bottom: 38px; } }
+        .price-card-badge { position: absolute; top: -13px; left: 50%; transform: translateX(-50%); background: var(--cta); color: var(--text-on-ink); font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 700; letter-spacing: 0.5px; padding: 5px 14px; border-radius: 20px; white-space: nowrap; }
+        .price-card-name { font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--seal); margin-bottom: 10px; }
+        .price-card.featured .price-card-name { color: var(--seal-light); }
+        .price-card-amount { font-family: 'IBM Plex Mono', monospace; font-size: 2.6rem; font-weight: 700; color: var(--text); line-height: 1; margin-bottom: 4px; font-variant-numeric: tabular-nums; }
+        .price-card.featured .price-card-amount { color: var(--text-on-ink); }
+        .price-card-unit { font-size: 13px; color: var(--text-muted); margin-bottom: 20px; }
+        .price-card.featured .price-card-unit { color: var(--text-on-ink-muted); }
+        .price-card-features { list-style: none; display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px; flex-grow: 1; }
+        .price-card-features li { font-size: 13.5px; line-height: 1.5; color: var(--text-muted); padding-left: 22px; position: relative; }
+        .price-card-features li::before { content: '✓'; position: absolute; left: 0; color: var(--verified); font-weight: 800; }
+        .price-card.featured .price-card-features li { color: var(--text-on-ink-muted); }
+        .price-card.featured .price-card-features li::before { color: var(--verified-light); }
+        .price-card-cta { background: transparent; border: 1.5px solid var(--seal); color: var(--seal); padding: 12px 20px; border-radius: 8px; font-weight: 700; font-size: 14px; cursor: pointer; transition: all 0.2s; }
+        .price-card-cta:hover { background: var(--seal); color: var(--text-on-ink); }
+        .price-card.featured .price-card-cta { background: var(--cta); border-color: var(--cta); color: var(--text-on-ink); }
+        .price-card.featured .price-card-cta:hover { background: var(--cta-hover); border-color: var(--cta-hover); }
 
         .offer-box { background: var(--ink); border-radius: 12px; overflow: hidden; margin-top: 32px; border: 1px solid rgba(201,169,74,0.22); }
         .offer-head { background-image: radial-gradient(rgba(201,169,74,0.12) 1px, transparent 1.5px), linear-gradient(135deg, var(--ink-2) 0%, var(--ink) 100%); background-size: 22px 22px, cover; padding: 32px 24px; text-align: center; }
@@ -295,7 +323,7 @@
             <h1 class="h-title">Ne donnez pas les clés de votre bien à un <span class="accent">fraudeur</span> (sans le savoir).</h1>
             <p class="h-sub">Les fausses fiches de paie et avis d'imposition falsifiés sont devenus indétectables à l'œil nu. BailSafe détecte ces anomalies grâce à une analyse forensique avancée des PDF — évitez jusqu'à 18 mois de procédure d'expulsion et des milliers d'euros de pertes.</p>
             <div class="h-buttons">
-                <button class="btn-primary" onclick="document.getElementById('form-section').scrollIntoView({behavior:'smooth'})">Analyser un dossier maintenant (39 €)</button>
+                <button class="btn-primary" onclick="document.getElementById('form-section').scrollIntoView({behavior:'smooth'})">Analyser un dossier maintenant (dès 59 €)</button>
                 <button class="btn-secondary" onclick="document.getElementById('expert').scrollIntoView({behavior:'smooth'})">Voir un exemple de rapport</button>
             </div>
             <div class="h-riskfree">✓ Remboursé intégralement si l'analyse ne peut pas être réalisée — zéro risque.</div>
@@ -356,7 +384,7 @@
             <div class="pain-card">
                 <div class="pain-num">03</div>
                 <div class="pain-title">Une fois le bail signé, vous êtes bloqué</div>
-                <div class="pain-desc">L'expulsion prend 12 à 18 mois. Un dossier non vérifié vous coûtera bien plus que 39 €.</div>
+                <div class="pain-desc">L'expulsion prend 12 à 18 mois. Un dossier non vérifié vous coûtera bien plus qu'un audit à 59 €.</div>
             </div>
             <div class="pain-card">
                 <div class="pain-num">04</div>
@@ -419,19 +447,51 @@
     <!-- OFFER -->
     <section class="section reveal" id="offer">
         <div class="s-label">// Offre_Finale</div>
-        <h2 class="s-title">Un dossier frauduleux coûte des milliers.<br><span class="accent">L'audit en coûte 39 €.</span></h2>
-        <p class="s-desc">Votre candidat semble sérieux. Peut-être qu'il l'est. Mais si son PDF a été retouché numériquement, vous ne le verrez jamais — BailSafe si.</p>
+        <h2 class="s-title">Un dossier frauduleux coûte des milliers.<br><span class="accent">Un audit BailSafe, à partir de 59 €.</span></h2>
+        <p class="s-desc">Votre candidat semble sérieux. Peut-être qu'il l'est. Mais si son dossier a été retouché numériquement, vous ne le verrez jamais — BailSafe si. Trois niveaux d'analyse, selon ce que vous devez vérifier.</p>
+
+        <div class="pricing-grid">
+            <div class="price-card">
+                <div class="price-card-name">Essentiel</div>
+                <div class="price-card-amount">59 €</div>
+                <div class="price-card-unit">1 document analysé</div>
+                <ul class="price-card-features">
+                    <li>Analyse forensique complète (SHA-256, métadonnées, structure)</li>
+                    <li>Vérification de cohérence financière</li>
+                    <li>Rapport PDF daté sous 24h</li>
+                </ul>
+                <button class="price-card-cta" onclick="selectFormule('Essentiel — 1 document (59 €)')">Choisir Essentiel</button>
+            </div>
+            <div class="price-card featured">
+                <div class="price-card-badge">★ Le plus choisi</div>
+                <div class="price-card-name">Sécurisé</div>
+                <div class="price-card-amount">129 €</div>
+                <div class="price-card-unit">2 documents du même candidat</div>
+                <ul class="price-card-features">
+                    <li>Tout Essentiel, appliqué aux deux documents</li>
+                    <li>Cohérence croisée entre les deux (ex. fiche de paie + avis d'imposition)</li>
+                    <li>Rapport PDF unique et consolidé</li>
+                </ul>
+                <button class="price-card-cta" onclick="selectFormule('Sécurisé — 2 documents (129 €)')">Choisir Sécurisé</button>
+            </div>
+            <div class="price-card">
+                <div class="price-card-name">Dossier Complet</div>
+                <div class="price-card-amount">229 €</div>
+                <div class="price-card-unit">Jusqu'à 4 documents</div>
+                <ul class="price-card-features">
+                    <li>Fiche de paie, avis d'imposition, contrat de travail, relevé bancaire</li>
+                    <li>Rapport de cohérence globale du dossier</li>
+                    <li>Traitement prioritaire</li>
+                </ul>
+                <button class="price-card-cta" onclick="selectFormule('Dossier Complet — jusqu\'à 4 documents (229 €)')">Choisir Dossier Complet</button>
+            </div>
+        </div>
 
         <div class="offer-box">
-            <div class="offer-head">
-                <div class="offer-price">39 €</div>
-                <div class="offer-unit">TTC par dossier analysé</div>
-                <div class="offer-tag">RAPPORT PDF INCLUS · SOUS 24H</div>
-            </div>
-            <div class="offer-body">
+            <div class="offer-body" style="padding-top:28px">
                 <div class="objections">
                     <div class="obj-item"><span class="obj-check">✓</span><span>Commande directe — pas de compte à créer, pas de logiciel.</span></div>
-                    <div class="obj-item"><span class="obj-check">✓</span><span>Vous envoyez juste le PDF par email — aucune manipulation technique requise.</span></div>
+                    <div class="obj-item"><span class="obj-check">✓</span><span>Vous envoyez juste vos documents par email — aucune manipulation technique requise.</span></div>
                     <div class="obj-item"><span class="obj-check">✓</span><span>Le rapport est daté et conservable — utile en cas de litige.</span></div>
                     <div class="obj-item"><span class="obj-check">✓</span><span>Conforme RGPD — données supprimées sous 30 jours.</span></div>
                 </div>
@@ -439,10 +499,20 @@
                 <!-- FORMULAIRE DE COMMANDE -->
                 <div id="form-section">
                     <div class="form-box">
-                        <div class="form-box-title">📋 Commander votre audit — 39 €</div>
+                        <div class="form-box-title">📋 Commander votre audit — à partir de 59 €</div>
                         <div class="form-box-sub">Remplissez vos infos — vous recevrez une confirmation par email avec les instructions de paiement PayPal</div>
 
                         <div class="form-grid">
+                            <div class="form-full">
+                                <label class="f-label" for="formule">Formule *</label>
+                                <select class="f-select" id="formule" required aria-describedby="err-formule">
+                                    <option value="" disabled selected>Choisir...</option>
+                                    <option value="Essentiel — 1 document (59 €)">Essentiel — 1 document (59 €)</option>
+                                    <option value="Sécurisé — 2 documents (129 €)">Sécurisé — 2 documents (129 €)</option>
+                                    <option value="Dossier Complet — jusqu'à 4 documents (229 €)">Dossier Complet — jusqu'à 4 documents (229 €)</option>
+                                </select>
+                                <div class="field-error-msg" id="err-formule">Merci de choisir une formule.</div>
+                            </div>
                             <div>
                                 <label class="f-label" for="name">Prénom & Nom *</label>
                                 <input class="f-input" type="text" id="name" required autocomplete="name" placeholder="Jean Dupont" aria-describedby="err-name">
@@ -458,7 +528,7 @@
                                 <input class="f-input" type="tel" id="phone" autocomplete="tel" placeholder="06 12 34 56 78">
                             </div>
                             <div>
-                                <label class="f-label" for="doctype">Type de document *</label>
+                                <label class="f-label" for="doctype">Document principal *</label>
                                 <select class="f-select" id="doctype" required aria-describedby="err-doctype">
                                     <option value="" disabled selected>Choisir...</option>
                                     <option value="Fiche de paie">Fiche de paie</option>
@@ -471,7 +541,7 @@
                             </div>
                             <div class="form-full">
                                 <label class="f-label" for="message">Message / Précisions (optionnel)</label>
-                                <textarea class="f-textarea" id="message" autocomplete="off" placeholder="Ex : dossier pour un T3 à 800€/mois..."></textarea>
+                                <textarea class="f-textarea" id="message" autocomplete="off" placeholder="Ex : dossier pour un T3 à 800€/mois. Si Sécurisé ou Dossier Complet, précisez ici les autres documents (ex. avis d'imposition, contrat de travail)."></textarea>
                             </div>
 
                             <!-- Checkbox RGPD candidat -->
@@ -521,19 +591,19 @@
                     <div class="pc-steps">
                         <div class="pc-step">
                             <div class="pc-step-num">1</div>
-                            <div class="pc-step-text"><strong>Payez 39 €</strong> via le bouton PayPal ci-dessous.</div>
+                            <div class="pc-step-text"><strong>Payez <span id="pcAmount">59</span> €</strong> via le bouton PayPal ci-dessous.</div>
                         </div>
                         <div class="pc-step">
                             <div class="pc-step-num">2</div>
-                            <div class="pc-step-text"><strong>Envoyez le PDF</strong> à auditer par email à
+                            <div class="pc-step-text"><strong>Envoyez vos documents</strong> à auditer par email à
                                 <a href="mailto:bunetnolan@gmail.com?subject=Document%20à%20auditer%20-%20BailSafe">bunetnolan@gmail.com</a>,
                                 en précisant le même nom que dans le formulaire.</div>
                         </div>
                     </div>
-                    <button class="btn-paypal" onclick="window.open('https://paypal.me/NolanBunet/39EUR','_blank')">
-                        🅿️ Payer 39 € via PayPal
+                    <button class="btn-paypal" id="paypalBtn" onclick="window.open('https://paypal.me/NolanBunet/59EUR','_blank')">
+                        🅿️ Payer <span id="pcAmount2">59</span> € via PayPal
                     </button>
-                    <div class="pc-note">Paiement sécurisé · Remboursé si document incompatible · Rapport sous 24h après réception du paiement <u>et</u> du document</div>
+                    <div class="pc-note">Paiement sécurisé · Remboursé si documents incompatibles · Rapport sous 24h après réception du paiement <u>et</u> des documents</div>
                 </div>
 
                 <div class="garantie">✓ Si l'analyse ne peut pas être réalisée, vous êtes remboursé intégralement.</div>
@@ -555,13 +625,13 @@
                 </div>
                 <div class="anchor-vs">vs</div>
                 <div class="anchor-item">
-                    <div class="anchor-num win">39 €</div>
+                    <div class="anchor-num win">Dès 59 €</div>
                     <div class="anchor-label">Coût d'un audit BailSafe, remboursé si inexploitable</div>
                 </div>
             </div>
 
             <button class="closing-cta-btn" onclick="document.getElementById('form-section').scrollIntoView({behavior:'smooth'})">
-                Sécuriser ce dossier maintenant — 39 €
+                Sécuriser ce dossier maintenant
             </button>
             <div class="closing-trust">Analyse réalisée personnellement par Nolan, un dossier à la fois — pas un algorithme anonyme. Conforme RGPD.</div>
         </div>
@@ -593,7 +663,7 @@
             <div class="legal-block">
                 <h3 class="legal-sub">Conditions générales de vente</h3>
                 <p><strong>Objet :</strong> prestation d'analyse technique (forensique) d'un document PDF fourni par le client, donnant lieu à un rapport PDF détaillant les éventuelles anomalies détectées.</p>
-                <p style="margin-top:12px"><strong>Prix :</strong> 39 € TTC par dossier analysé, sans frais caché.</p>
+                <p style="margin-top:12px"><strong>Prix :</strong> 59 € TTC (formule Essentiel, 1 document), 129 € TTC (formule Sécurisé, 2 documents) ou 229 € TTC (formule Dossier Complet, jusqu'à 4 documents), sans frais caché. Le prix applicable est celui de la formule choisie lors de la commande.</p>
                 <p style="margin-top:12px"><strong>Paiement :</strong> intégral, par PayPal, préalable à la réalisation de l'analyse.</p>
                 <p style="margin-top:12px"><strong>Délai d'exécution :</strong> rapport transmis par email sous 24h à compter de la réception conjointe du paiement et du document à analyser.</p>
                 <p style="margin-top:12px"><strong>Droit de rétractation :</strong> conformément à l'article L221-28 du Code de la consommation, ce droit ne s'applique pas aux prestations pleinement exécutées avant la fin du délai légal de 14 jours, dès lors que leur exécution a commencé avec l'accord exprès du client et que celui-ci a renoncé à ce droit. En cochant la case dédiée lors de la commande, vous demandez expressément le démarrage immédiat de l'analyse et renoncez à votre droit de rétractation une fois le rapport livré.</p>
@@ -656,6 +726,20 @@
         const ORDER_ENDPOINT = "/.netlify/functions/order";
         // ──────────────────────────────────────────────────────────
 
+        const FORMULE_PRICES = {
+            "Essentiel — 1 document (59 €)": 59,
+            "Sécurisé — 2 documents (129 €)": 129,
+            "Dossier Complet — jusqu'à 4 documents (229 €)": 229
+        };
+
+        function selectFormule(value) {
+            const sel = document.getElementById('formule');
+            sel.value = value;
+            sel.classList.remove('field-error');
+            document.getElementById('err-formule').classList.remove('show');
+            document.getElementById('form-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
         function showToast(msg, isError = false) {
             const t = document.getElementById('toast');
             t.textContent = msg;
@@ -683,7 +767,7 @@
         }, 900);
 
         function clearFieldErrors() {
-            ['name', 'email', 'doctype'].forEach(id => {
+            ['name', 'email', 'doctype', 'formule'].forEach(id => {
                 document.getElementById(id).classList.remove('field-error');
                 const msg = document.getElementById('err-' + id);
                 if (msg) msg.classList.remove('show');
@@ -701,9 +785,11 @@
                 if (msg) msg.classList.remove('show');
             });
         });
-        document.getElementById('doctype').addEventListener('change', function () {
-            this.classList.remove('field-error');
-            document.getElementById('err-doctype').classList.remove('show');
+        ['doctype', 'formule'].forEach(id => {
+            document.getElementById(id).addEventListener('change', function () {
+                this.classList.remove('field-error');
+                document.getElementById('err-' + id).classList.remove('show');
+            });
         });
         ['gdpr_candidat', 'retractation', 'gdpr'].forEach(id => {
             document.getElementById(id).addEventListener('change', function () {
@@ -716,6 +802,7 @@
             const emailEl        = document.getElementById('email');
             const phone          = document.getElementById('phone').value.trim();
             const doctypeEl      = document.getElementById('doctype');
+            const formuleEl      = document.getElementById('formule');
             const message        = document.getElementById('message').value.trim();
             const gdprEl         = document.getElementById('gdpr');
             const gdprCandidatEl = document.getElementById('gdpr_candidat');
@@ -724,6 +811,7 @@
             const name  = nameEl.value.trim();
             const email = emailEl.value.trim();
             const doctype = doctypeEl.value;
+            const formule = formuleEl.value;
             const emailValid = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email);
 
             clearFieldErrors();
@@ -741,6 +829,7 @@
                 errorCount++;
             };
 
+            if (!formule) flag(formuleEl, 'err-formule');
             if (!name) flag(nameEl, 'err-name');
             if (!email || !emailValid) flag(emailEl, 'err-email');
             if (!doctype) flag(doctypeEl, 'err-doctype');
@@ -767,6 +856,7 @@
                         name,
                         email,
                         phone: phone || 'Non renseigné',
+                        formule,
                         document_type: doctype,
                         message: message || 'Aucune précision',
                         gdpr_consent: 'Accepté',
@@ -776,6 +866,11 @@
                 });
 
                 if (response.ok) {
+                    const montant = FORMULE_PRICES[formule] || 59;
+                    document.getElementById('pcAmount').textContent = montant;
+                    document.getElementById('pcAmount2').textContent = montant;
+                    document.getElementById('paypalBtn').setAttribute('onclick', `window.open('https://paypal.me/NolanBunet/${montant}EUR','_blank')`);
+
                     document.getElementById('form-section').style.display = 'none';
                     const confirm = document.getElementById('paymentConfirm');
                     confirm.classList.add('visible');

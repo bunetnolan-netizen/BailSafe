@@ -15,13 +15,20 @@ exports.handler = async (event) => {
   }
 
   const {
-    name, email, phone, document_type, message,
+    name, email, phone, formule, document_type, message,
     gdpr_consent, gdpr_candidat_informe, retractation_renoncement
   } = data;
 
   if (!name || !email || !document_type) {
     return { statusCode: 400, body: JSON.stringify({ error: 'Champs requis manquants' }) };
   }
+
+  const FORMULE_PRICES = {
+    "Essentiel — 1 document (59 €)": 59,
+    "Sécurisé — 2 documents (129 €)": 129,
+    "Dossier Complet — jusqu'à 4 documents (229 €)": 229
+  };
+  const montant = FORMULE_PRICES[formule] || 59;
 
   const apiKey = process.env.BREVO_API_KEY;
   const senderEmail = process.env.BREVO_SENDER_EMAIL;
@@ -35,10 +42,11 @@ exports.handler = async (event) => {
 
   const htmlContent = `
     <h2>Nouvelle commande BailSafe</h2>
+    <p><strong>Formule :</strong> ${escapeHtml(formule || 'Non précisée')}</p>
     <p><strong>Nom :</strong> ${escapeHtml(name)}</p>
     <p><strong>Email :</strong> ${escapeHtml(email)}</p>
     <p><strong>Téléphone :</strong> ${escapeHtml(phone || 'Non renseigné')}</p>
-    <p><strong>Type de document :</strong> ${escapeHtml(document_type)}</p>
+    <p><strong>Document principal :</strong> ${escapeHtml(document_type)}</p>
     <p><strong>Message :</strong> ${escapeHtml(message || 'Aucune précision')}</p>
     <p><strong>Consentement RGPD :</strong> ${escapeHtml(gdpr_consent || '')}</p>
     <p><strong>Candidat informé (art. 14) :</strong> ${escapeHtml(gdpr_candidat_informe || '')}</p>
@@ -81,12 +89,13 @@ exports.handler = async (event) => {
         subject: 'Votre commande BailSafe — 2 étapes restantes',
         htmlContent: `
           <h2>Merci ${escapeHtml(name)}, votre demande est bien reçue !</h2>
+          <p>Formule choisie : <strong>${escapeHtml(formule || 'Essentiel')}</strong></p>
           <p>Il vous reste 2 étapes pour lancer l'analyse :</p>
-          <p><strong>1. Payez 39 €</strong> via PayPal : <a href="https://paypal.me/NolanBunet/39EUR">https://paypal.me/NolanBunet/39EUR</a></p>
-          <p><strong>2. Envoyez le PDF</strong> à auditer par email à
+          <p><strong>1. Payez ${montant} €</strong> via PayPal : <a href="https://paypal.me/NolanBunet/${montant}EUR">https://paypal.me/NolanBunet/${montant}EUR</a></p>
+          <p><strong>2. Envoyez vos documents</strong> à auditer par email à
             <a href="mailto:bunetnolan@gmail.com?subject=Document%20à%20auditer%20-%20BailSafe">bunetnolan@gmail.com</a>,
             en précisant le même nom que dans le formulaire (${escapeHtml(name)}).</p>
-          <p>Rapport livré sous 24h après réception du paiement <u>et</u> du document.</p>
+          <p>Rapport livré sous 24h après réception du paiement <u>et</u> des documents.</p>
         `
       });
       if (!confirmRes.ok) {
