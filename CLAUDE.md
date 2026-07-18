@@ -14,8 +14,9 @@ d'entrée résumé + le journal de bord des sessions.
 ## Stack
 
 - Python + Streamlit (`app_expert.py` = interface d'analyse, protégée par mot de passe)
-- `index.html` = vitrine standalone HTML/CSS/JS, **en ligne sur Netlify** (https://bail-safe.netlify.app/),
-  ne pas confondre avec `archive/app_vitrine.py` qui est **archivé, ne plus utiliser**
+- `index.html` = vitrine standalone HTML/CSS/JS, **en ligne sur Netlify** (https://bail-safe.netlify.app/)
+  — c'est la seule vitrine du projet (l'ancienne version Streamlit `app_vitrine.py` a été
+  supprimée du dépôt le 18 juillet 2026, récupérable via `git log` si besoin)
 - ReportLab pour le rapport PDF, pdfplumber/pikepdf pour l'extraction/analyse PDF
 - Secrets via `os.getenv()` puis `st.secrets` (jamais commités — voir `secrets.toml.example`)
 
@@ -122,3 +123,35 @@ date, ce qui a été fait, ce qui reste en TODO manuel pour Nolan. Garde chaque 
 - Finaliser le déploiement Render et renseigner son URL dans `BAILSAFE_CONTEXTE.md`.
 - Décider si/quand automatiser l'analyse multi-documents dans `app_expert.py` pour les
   formules Sécurisé et Dossier Complet (actuellement traitement manuel par Nolan).
+
+---
+
+### 18 juillet 2026
+
+- **Analyse multi-documents automatisée** (le point resté en TODO depuis le 5 juillet) :
+  `app_expert.py` permet désormais de choisir la formule commandée (Essentiel/Sécurisé/Dossier
+  Complet) et d'uploader jusqu'à 1/2/4 PDF en une seule session. Chaque document est analysé
+  individuellement (forensique + cohérence financière, UI par onglets/expandeurs), puis une
+  **cohérence croisée** est calculée : détection de fichiers identiques déposés en double, et
+  détection d'écarts anormaux (>30 %) entre plusieurs fiches de paie du même dossier. Le
+  verdict global retient le **score forensique le plus élevé** parmi les documents (pas une
+  moyenne, pour ne pas diluer un document falsifié par des pièces saines) + une pénalité si
+  doublon/incohérence détectée. Un rapport PDF combiné (une section par document + synthèse de
+  cohérence) est généré et envoyé/téléchargé en un seul geste. Nouvelles fonctions :
+  `analyser_dossier_croise()`, `calculer_verdict_dossier()`, `build_dossier_report_pdf()`.
+  Au passage, correction d'un bug de mise en page ReportLab (texte long non enveloppé dans
+  `_signal_table`, chevauchait la pastille de statut).
+- **Tests automatisés ajoutés** : le projet n'en avait aucun. Nouveau `tests/test_app_expert.py`
+  (27 tests pytest) couvrant les fonctions pures — parsing montants, cohérence financière,
+  scoring forensique, et toute la nouvelle logique multi-documents. `pytest>=8.0` ajouté à
+  `requirements.txt`. Pas de CI GitHub Actions mise en place (à voir si utile).
+- `archive/app_vitrine.py` (ancienne vitrine Streamlit dépréciée, doublon d'`index.html`)
+  **supprimé** du dépôt — décision en TODO depuis le 4 juillet, tranchée : plus aucune raison
+  de la garder, reste récupérable via l'historique git.
+- Explication donnée à Nolan sur le statut Brevo "Delayed" vs "Delivered" (aucun changement de
+  code — c'est un statut à vérifier dans le tableau de bord Brevo lui-même).
+
+**TODO manuels restants :**
+- Vérifier le statut Brevo (Delayed → Delivered) — à confirmer par Nolan dans le dashboard.
+- Vérifier l'alerte de panne Render du 5 juillet et confirmer que `app_expert.py` fonctionne.
+- Finaliser le déploiement Render et renseigner son URL dans `BAILSAFE_CONTEXTE.md`.
