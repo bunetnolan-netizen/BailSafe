@@ -2,3 +2,6 @@ streamlit>=1.33
 pdfplumber>=0.11
 pikepdf>=8.0
 reportlab>=4.0
+
+# Dépendances de développement uniquement (tests) — non requises en production
+pytest>=8.0

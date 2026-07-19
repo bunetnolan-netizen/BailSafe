@@ -98,6 +98,36 @@ class Verdict:
     date_analyse: str
 
 
+@dataclass
+class DocumentAnalyse:
+    """Résultat complet pour UN document au sein d'un dossier (1 à 4 pièces)."""
+    nom_fichier: str
+    type_document: str
+    analysis: "PDFAnalysis"
+    forensic: "ForensicResult"
+    math: "MathResult"
+
+
+@dataclass
+class CrossDocResult:
+    """Cohérence entre les documents d'un même dossier (formules Sécurisé / Dossier Complet)."""
+    nb_documents: int
+    doublons_detectes: bool = False
+    fichiers_dupliques: List[str] = field(default_factory=list)
+    ecarts_fiches_paie: List[str] = field(default_factory=list)  # messages informatifs
+    incoherence_financiere: bool = False
+
+
+TYPES_DOCUMENT = ["Fiche de paie", "Avis d'imposition", "Contrat de travail", "Autre"]
+
+# Libellé affiché -> nombre de documents autorisés pour la formule
+FORMULES = {
+    "Essentiel (59 € — 1 document)": 1,
+    "Sécurisé (129 € — jusqu'à 2 documents)": 2,
+    "Dossier Complet (229 € — jusqu'à 4 documents)": 4,
+}
+
+
 # ============== EXTRACTION ==============
 
 def extract_pdf_content(fichier_pdf) -> PDFAnalysis:
@@ -370,6 +400,73 @@ def calculer_verdict(math: MathResult, forensic: ForensicResult) -> Verdict:
     )
 
 
+# ============== ANALYSE CROISÉE (formules Sécurisé / Dossier Complet) ==============
+
+def analyser_dossier_croise(docs: List[DocumentAnalyse]) -> CrossDocResult:
+    """Cohérence entre plusieurs documents d'un même dossier.
+    Ne signale que des écarts fiables (peu de faux positifs) : fichiers identiques
+    déposés deux fois, et variations fortes et inexpliquées entre plusieurs fiches
+    de paie du même dossier."""
+    cross = CrossDocResult(nb_documents=len(docs))
+
+    par_hash: dict = {}
+    for d in docs:
+        par_hash.setdefault(d.analysis.hash_sha256, []).append(d.nom_fichier)
+    for noms in par_hash.values():
+        if len(noms) > 1:
+            cross.doublons_detectes = True
+            cross.fichiers_dupliques.extend(noms)
+
+    fiches = [d for d in docs
+              if d.type_document == "Fiche de paie" and d.math.net_imposable_mensuel > 0]
+    for a, b in zip(fiches, fiches[1:]):
+        base = max(a.math.net_imposable_mensuel, b.math.net_imposable_mensuel)
+        ecart_pct = abs(a.math.net_imposable_mensuel - b.math.net_imposable_mensuel) / base
+        if ecart_pct > 0.30:
+            cross.incoherence_financiere = True
+            cross.ecarts_fiches_paie.append(
+                f"« {a.nom_fichier} » ({a.math.net_imposable_mensuel:.2f} €) et "
+                f"« {b.nom_fichier} » ({b.math.net_imposable_mensuel:.2f} €) : écart de "
+                f"{ecart_pct * 100:.0f} % du net imposable mensuel — à faire expliquer par le candidat."
+            )
+
+    return cross
+
+
+def calculer_verdict_dossier(docs: List[DocumentAnalyse], cross: CrossDocResult) -> Verdict:
+    """Verdict global d'un dossier à plusieurs documents.
+    Le score forensique retenu est le MAX (et non la moyenne) des documents : un seul
+    document falsifié ne doit pas être dilué par des pièces saines. Les anomalies
+    croisées (doublons, écarts entre fiches de paie) s'ajoutent par-dessus."""
+    if not docs:
+        return Verdict(score_risque=0,
+                        statut="🟢 AUCUNE ANOMALIE TECHNIQUE détectée sur le dossier",
+                        date_analyse=datetime.now().strftime("%d/%m/%Y à %H:%M"))
+
+    score_forensic_max = max(d.forensic.score_risque_forensic for d in docs)
+    fraude_math = any(d.math.fraude_math for d in docs)
+    score_math = 45 if fraude_math else 0
+    score_global = int(0.6 * score_forensic_max + 0.4 * score_math)
+    if cross.doublons_detectes:
+        score_global += 20
+    if cross.incoherence_financiere:
+        score_global += 10
+    score_global = min(score_global, 100)
+
+    if score_global >= 70:
+        statut = "🔴 ANOMALIES MAJEURES sur le dossier — Vérification humaine obligatoire"
+    elif score_global >= 40:
+        statut = "🟠 ANOMALIES MODÉRÉES sur le dossier — Vérification humaine recommandée"
+    else:
+        statut = "🟢 AUCUNE ANOMALIE TECHNIQUE détectée sur le dossier"
+
+    return Verdict(
+        score_risque=score_global,
+        statut=statut,
+        date_analyse=datetime.now().strftime("%d/%m/%Y à %H:%M"),
+    )
+
+
 # ============== RAPPORT PDF (mise en page professionnelle) ==============
 
 # Palette de marque
@@ -520,9 +617,18 @@ def _section_title(text, styles):
                        fontName='Helvetica-Bold', textColor=INK, spaceBefore=4, spaceAfter=2))
 
 
+_SIGNAL_LABEL_STYLE = ParagraphStyle('SigLabel', fontName='Helvetica-Bold', fontSize=8.8,
+                                     textColor=HexColor('#1E293B'), leading=11.5)
+_SIGNAL_DETAIL_STYLE = ParagraphStyle('SigDetail', fontName='Helvetica', fontSize=8.8,
+                                      textColor=HexColor('#475569'), leading=11.5)
+
+
 def _signal_table(rows, col_widths):
     """rows = list of (label, detail, flag_bool|None, value_text).
-    flag None = neutre (info). True = alerte. False = OK."""
+    flag None = neutre (info). True = alerte. False = OK.
+    Label et détail sont enveloppés dans des Paragraph pour se replier proprement à la
+    ligne (un texte trop long dépasserait sinon la largeur de colonne et chevaucherait
+    la pastille de statut)."""
     data = []
     styles_extra = []
     for i, (label, detail, flag, value) in enumerate(rows):
@@ -532,7 +638,8 @@ def _signal_table(rows, col_widths):
             badge, bcolor, btext = HexColor('#FEE2E2'), RED, value or "DÉTECTÉ"
         else:
             badge, bcolor, btext = HexColor('#DCFCE7'), GREEN, value or "OK"
-        data.append([label, detail, btext])
+        data.append([Paragraph(label, _SIGNAL_LABEL_STYLE),
+                    Paragraph(detail, _SIGNAL_DETAIL_STYLE), btext])
         r = len(data) - 1
         styles_extra.append(('BACKGROUND', (2, r), (2, r), badge))
         styles_extra.append(('TEXTCOLOR', (2, r), (2, r), bcolor))
@@ -554,6 +661,69 @@ def _signal_table(rows, col_widths):
     ]
     t.setStyle(TableStyle(base + styles_extra))
     return t
+
+
+def _append_forensic_financial_sections(story, styles, usable, forensic: ForensicResult,
+                                         math: MathResult, titre_suffixe: str = "") -> None:
+    """Ajoute au récit ReportLab le tableau forensique puis, si pertinent, le tableau de
+    cohérence financière d'UN document. Factorisé pour être réutilisé tel quel dans le
+    rapport mono-document et dans chaque section du rapport de dossier multi-documents."""
+    date_modifiee_comptee = forensic.date_modifiee and not forensic.signature_detectee
+
+    story.append(_section_title(f"Analyse forensique du fichier{titre_suffixe}", styles))
+    story.append(Spacer(1, 6))
+    xref_detail = (f"{forensic.incremental_updates} sauvegarde(s) — "
+                  + ("document remanié après émission" if forensic.xref_anormal else "structure d'origine"))
+    if forensic.signature_detectee and not forensic.xref_anormal:
+        xref_detail += " (cohérent avec signature électronique)"
+    forensic_rows = [
+        ("Structure du fichier (xref)", xref_detail,
+         forensic.xref_anormal, "REMANIÉ" if forensic.xref_anormal else "INTÈGRE"),
+        ("Signature électronique",
+         "Document signé numériquement" if forensic.signature_detectee else "Aucune signature détectée",
+         None, "OUI" if forensic.signature_detectee else "NON"),
+        ("Outils d'édition graphique",
+         ", ".join(forensic.logiciels_detectes) or "Aucun outil de retouche détecté",
+         forensic.fraude_meta, None),
+        ("Date de modification",
+         ("Modifié après création (signal faible, non déterminant ici)"
+          if date_modifiee_comptee
+          else ("Modifié après création — cohérent avec la signature" if forensic.date_modifiee
+                else "Cohérente avec la création")),
+         date_modifiee_comptee, None),
+        ("JavaScript embarqué",
+         "Code exécutable présent" if forensic.javascript_suspect else "Aucun code détecté",
+         forensic.javascript_suspect, None),
+        ("Fichiers incorporés",
+         "Pièces jointes masquées" if forensic.fichiers_incorpores else "Aucun fichier incorporé",
+         forensic.fichiers_incorpores, None),
+        ("Annotations superposées",
+         "Texte/tampon ajouté par-dessus" if forensic.annotations_suspectes else "Aucune surcouche",
+         forensic.annotations_suspectes, None),
+        ("Polices détectées", f"{len(forensic.fonts_detectees)} police(s) dans le document",
+         None, str(len(forensic.fonts_detectees))),
+    ]
+    story.append(_signal_table(forensic_rows, [56 * mm, 78 * mm, 26 * mm]))
+    story.append(Spacer(1, 16))
+
+    if not math.est_scan and math.calcul_theorique > 0:
+        story.append(_section_title(f"Cohérence financière{titre_suffixe}", styles))
+        story.append(Spacer(1, 6))
+        seuil = max(100.0, math.calcul_theorique * 0.08)
+        fin_rows = [
+            ("Net imposable mensuel", f"{math.net_imposable_mensuel:,.2f} €".replace(",", " "),
+             None, ""),
+            ("Mois cumulés", f"{math.mois_cumules} mois", None, ""),
+            ("Cumul théorique attendu", f"{math.calcul_theorique:,.2f} €".replace(",", " "),
+             None, ""),
+            ("Cumul imposable déclaré", f"{math.cumul_imposable:,.2f} €".replace(",", " "),
+             None, ""),
+            ("Écart vs seuil de tolérance",
+             f"{math.ecart:,.2f} € (seuil {seuil:,.0f} €)".replace(",", " "),
+             math.fraude_math, "ANOMALIE" if math.fraude_math else "COHÉRENT"),
+        ]
+        story.append(_signal_table(fin_rows, [56 * mm, 78 * mm, 26 * mm]))
+        story.append(Spacer(1, 16))
 
 
 def build_report_pdf(verdict: Verdict, forensic: ForensicResult, math: MathResult) -> bytes:
@@ -615,62 +785,8 @@ def build_report_pdf(verdict: Verdict, forensic: ForensicResult, math: MathResul
     story.append(Paragraph(synth, normal))
     story.append(Spacer(1, 14))
 
-    # --- Analyse forensique ---
-    story.append(_section_title("Analyse forensique du fichier", styles))
-    story.append(Spacer(1, 6))
-    xref_detail = (f"{forensic.incremental_updates} sauvegarde(s) — "
-                  + ("document remanié après émission" if forensic.xref_anormal else "structure d'origine"))
-    if forensic.signature_detectee and not forensic.xref_anormal:
-        xref_detail += " (cohérent avec signature électronique)"
-    forensic_rows = [
-        ("Structure du fichier (xref)", xref_detail,
-         forensic.xref_anormal, "REMANIÉ" if forensic.xref_anormal else "INTÈGRE"),
-        ("Signature électronique",
-         "Document signé numériquement" if forensic.signature_detectee else "Aucune signature détectée",
-         None, "OUI" if forensic.signature_detectee else "NON"),
-        ("Outils d'édition graphique",
-         ", ".join(forensic.logiciels_detectes) or "Aucun outil de retouche détecté",
-         forensic.fraude_meta, None),
-        ("Date de modification",
-         ("Modifié après création (signal faible, non déterminant ici)"
-          if date_modifiee_comptee
-          else ("Modifié après création — cohérent avec la signature" if forensic.date_modifiee
-                else "Cohérente avec la création")),
-         date_modifiee_comptee, None),
-        ("JavaScript embarqué",
-         "Code exécutable présent" if forensic.javascript_suspect else "Aucun code détecté",
-         forensic.javascript_suspect, None),
-        ("Fichiers incorporés",
-         "Pièces jointes masquées" if forensic.fichiers_incorpores else "Aucun fichier incorporé",
-         forensic.fichiers_incorpores, None),
-        ("Annotations superposées",
-         "Texte/tampon ajouté par-dessus" if forensic.annotations_suspectes else "Aucune surcouche",
-         forensic.annotations_suspectes, None),
-        ("Polices détectées", f"{len(forensic.fonts_detectees)} police(s) dans le document",
-         None, str(len(forensic.fonts_detectees))),
-    ]
-    story.append(_signal_table(forensic_rows, [56 * mm, 78 * mm, 26 * mm]))
-    story.append(Spacer(1, 16))
-
-    # --- Cohérence financière ---
-    if not math.est_scan and math.calcul_theorique > 0:
-        story.append(_section_title("Cohérence financière", styles))
-        story.append(Spacer(1, 6))
-        seuil = max(100.0, math.calcul_theorique * 0.08)
-        fin_rows = [
-            ("Net imposable mensuel", f"{math.net_imposable_mensuel:,.2f} €".replace(",", " "),
-             None, ""),
-            ("Mois cumulés", f"{math.mois_cumules} mois", None, ""),
-            ("Cumul théorique attendu", f"{math.calcul_theorique:,.2f} €".replace(",", " "),
-             None, ""),
-            ("Cumul imposable déclaré", f"{math.cumul_imposable:,.2f} €".replace(",", " "),
-             None, ""),
-            ("Écart vs seuil de tolérance",
-             f"{math.ecart:,.2f} € (seuil {seuil:,.0f} €)".replace(",", " "),
-             math.fraude_math, "ANOMALIE" if math.fraude_math else "COHÉRENT"),
-        ]
-        story.append(_signal_table(fin_rows, [56 * mm, 78 * mm, 26 * mm]))
-        story.append(Spacer(1, 16))
+    # --- Analyse forensique + cohérence financière ---
+    _append_forensic_financial_sections(story, styles, usable, forensic, math)
 
     # --- Recommandations ---
     story.append(_section_title("Recommandations", styles))
@@ -729,13 +845,161 @@ def build_report_pdf(verdict: Verdict, forensic: ForensicResult, math: MathResul
     return buffer.getvalue()
 
 
-def get_report_filename(statut: str) -> str:
+def build_dossier_report_pdf(verdict: Verdict, docs: List[DocumentAnalyse],
+                              cross: CrossDocResult) -> bytes:
+    """Rapport combiné pour un dossier de 2 à 4 documents (formules Sécurisé /
+    Dossier Complet) : bandeau verdict global, section de cohérence croisée, puis
+    le détail forensique + financier de chaque document."""
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(
+        buffer, pagesize=A4,
+        leftMargin=40, rightMargin=40, topMargin=70, bottomMargin=46,
+        title="Rapport d'audit BailSafe — Dossier", author="BailSafe",
+    )
+    usable = doc.width - 12
+    styles = getSampleStyleSheet()
+    normal = ParagraphStyle('N', parent=styles['Normal'], fontSize=9.2,
+                            textColor=SLATE, leading=14, spaceAfter=5)
+    meta_lbl = ParagraphStyle('ML', parent=styles['Normal'], fontSize=7.5,
+                              textColor=SLATE_LT, fontName='Helvetica-Bold', leading=10)
+    meta_val = ParagraphStyle('MV', parent=styles['Normal'], fontSize=9,
+                              textColor=INK2, fontName='Helvetica-Bold', leading=12)
+
+    color, tint, label_court, label_long = _status_visuals(verdict.score_risque)
+    empreinte_dossier = hashlib.sha256(
+        "".join(d.analysis.hash_sha256 for d in docs).encode()
+    ).hexdigest()
+    ref = f"BS-{datetime.now().strftime('%Y%m%d')}-{empreinte_dossier[:6].upper()}"
+
+    story = []
+
+    # --- Bandeau méta ---
+    meta = Table([[
+        [Paragraph("RÉFÉRENCE DOSSIER", meta_lbl), Paragraph(ref, meta_val)],
+        [Paragraph("DATE D'ANALYSE", meta_lbl), Paragraph(verdict.date_analyse, meta_val)],
+        [Paragraph("DOCUMENTS ANALYSÉS", meta_lbl), Paragraph(str(len(docs)), meta_val)],
+    ]], colWidths=[usable / 3.0] * 3)
+    meta.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('LEFTPADDING', (0, 0), (0, 0), 0),
+        ('LINEAFTER', (0, 0), (0, 0), 0.6, LINE),
+        ('LINEAFTER', (1, 0), (1, 0), 0.6, LINE),
+        ('LEFTPADDING', (1, 0), (-1, 0), 16),
+        ('TOPPADDING', (0, 0), (-1, -1), 0), ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+    ]))
+    story.append(meta)
+    story.append(Spacer(1, 14))
+
+    # --- Bandeau verdict global (jauge) ---
+    story.append(ScoreGauge(verdict.score_risque, usable, color, tint, label_court, label_long))
+    story.append(Spacer(1, 18))
+
+    # --- Synthèse dossier ---
+    noms = ", ".join(f"« {d.nom_fichier} » ({d.type_document})" for d in docs)
+    synth = (f"Ce dossier comprend <b>{len(docs)} document(s)</b> : {noms}. Le score global "
+             f"retient le signal le plus fort parmi les documents (une seule pièce anormale "
+             f"suffit à alerter, même si les autres sont conformes) et intègre la cohérence "
+             f"entre les pièces du dossier. Le détail de chaque document suit ci-dessous.")
+    story.append(_section_title("Synthèse du dossier", styles))
+    story.append(Spacer(1, 4))
+    story.append(Paragraph(synth, normal))
+    story.append(Spacer(1, 14))
+
+    # --- Cohérence entre les documents ---
+    story.append(_section_title("Cohérence entre les documents du dossier", styles))
+    story.append(Spacer(1, 6))
+    cross_rows = [
+        ("Documents identiques déposés en double",
+         ", ".join(cross.fichiers_dupliques) if cross.doublons_detectes
+         else "Aucun fichier dupliqué détecté",
+         cross.doublons_detectes, "DÉTECTÉ" if cross.doublons_detectes else "OK"),
+        ("Cohérence entre fiches de paie",
+         " | ".join(cross.ecarts_fiches_paie) if cross.ecarts_fiches_paie
+         else "Aucun écart significatif entre les fiches de paie du dossier",
+         cross.incoherence_financiere, "À VÉRIFIER" if cross.incoherence_financiere else "OK"),
+    ]
+    story.append(_signal_table(cross_rows, [56 * mm, 78 * mm, 26 * mm]))
+    story.append(Spacer(1, 18))
+
+    # --- Détail par document ---
+    for i, d in enumerate(docs, start=1):
+        story.append(_section_title(f"Document {i}/{len(docs)} — {d.nom_fichier} "
+                                     f"({d.type_document})", styles))
+        story.append(Spacer(1, 4))
+        story.append(Paragraph(
+            f"Empreinte SHA-256 : <font face='Courier'>{d.analysis.hash_sha256[:24]}…</font> · "
+            f"Score forensique individuel : <b>{d.forensic.score_risque_forensic}/100</b>",
+            normal))
+        story.append(Spacer(1, 6))
+        _append_forensic_financial_sections(story, styles, usable, d.forensic, d.math,
+                                             titre_suffixe=f" — Document {i}")
+        story.append(Spacer(1, 4))
+
+    # --- Recommandations ---
+    story.append(_section_title("Recommandations", styles))
+    story.append(Spacer(1, 4))
+    if verdict.score_risque >= 70:
+        recs = [
+            "<b>Suspendre la décision</b> et demander les originaux au candidat.",
+            "Procéder à une <b>vérification humaine complémentaire</b> (employeur, organisme émetteur).",
+            "La <b>décision finale</b> d'accepter ou refuser le dossier appartient au bailleur.",
+        ]
+    elif verdict.score_risque >= 40:
+        recs = [
+            "<b>Signaler les anomalies</b> détectées au bailleur.",
+            "<b>Vérification humaine rapide</b> recommandée avant signature.",
+            "<b>Demander une explication écrite</b> au candidat.",
+        ]
+    else:
+        recs = [
+            "Aucune anomalie technique — le dossier peut être <b>instruit normalement</b>.",
+            "Ce rapport peut servir de <b>justificatif de diligence</b>.",
+        ]
+    rec_style = ParagraphStyle('Rec', parent=normal, leftIndent=14, firstLineIndent=-12,
+                               bulletIndent=0, spaceAfter=6)
+    for r in recs:
+        story.append(Paragraph(f'<font color="#F59E0B"><b>›</b></font>&nbsp;&nbsp;{r}', rec_style))
+    story.append(Spacer(1, 14))
+
+    # --- Avertissement légal (encadré) ---
+    purge_date = (datetime.now() + timedelta(days=30)).strftime("%d/%m/%Y")
+    legal_text = ("Ce rapport est une analyse technique automatisée fournie à titre consultatif. "
+                  "Il porte sur l'intégrité et la structure des documents, non sur la personne. Il ne "
+                  "constitue pas une garantie juridique et ne vaut pas décision : la décision "
+                  "d'accepter ou de refuser un dossier appartient exclusivement au bailleur (aucune "
+                  "décision automatisée au sens de l'article 22 du RGPD). BailSafe ne peut être tenu "
+                  "responsable des décisions prises sur la base de ce rapport. Une falsification suivie "
+                  "d'une impression puis d'un nouveau scan peut échapper à l'analyse. Conformément à "
+                  f"l'article 5.1.e du RGPD, ce rapport et les documents sources doivent être supprimés "
+                  f"par le bailleur (y compris de sa messagerie) au plus tard le <b>{purge_date}</b> "
+                  f"(30 jours après l'analyse).")
+    legal_box = Table([[Paragraph(
+        f'<font color="#475569"><b>AVERTISSEMENT LÉGAL — </b></font>'
+        f'<font color="#64748B">{legal_text}</font>',
+        ParagraphStyle('L', parent=styles['Normal'], fontSize=7.6, leading=11,
+                       textColor=SLATE))]], colWidths=[usable])
+    legal_box.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), HexColor('#F8FAFC')),
+        ('BOX', (0, 0), (-1, -1), 0.6, LINE),
+        ('LINEBEFORE', (0, 0), (0, -1), 2.5, AMBER),
+        ('TOPPADDING', (0, 0), (-1, -1), 10), ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
+        ('LEFTPADDING', (0, 0), (-1, -1), 14), ('RIGHTPADDING', (0, 0), (-1, -1), 14),
+    ]))
+    story.append(legal_box)
+
+    doc.build(story, canvasmaker=NumberedCanvas)
+    buffer.seek(0)
+    return buffer.getvalue()
+
+
+def get_report_filename(statut: str, dossier: bool = False) -> str:
     date = datetime.now().strftime("%Y%m%d_%H%M%S")
+    suffixe = "_Dossier" if dossier else ""
     if statut.startswith("🔴"):
-        return f"BailSafe_ALERTE_{date}.pdf"
+        return f"BailSafe_ALERTE{suffixe}_{date}.pdf"
     elif statut.startswith("🟠"):
-        return f"BailSafe_ATTENTION_{date}.pdf"
-    return f"BailSafe_CONFORME_{date}.pdf"
+        return f"BailSafe_ATTENTION{suffixe}_{date}.pdf"
+    return f"BailSafe_CONFORME{suffixe}_{date}.pdf"
 
 
 # ============== EMAIL ==============
@@ -825,6 +1089,120 @@ def check_password() -> bool:
 
 # ============== INTERFACE STREAMLIT ==============
 
+def _afficher_coherence_financiere_doc(analysis: PDFAnalysis, key_prefix: str) -> MathResult:
+    """Affiche les contrôles de cohérence financière pour UN document et renvoie le résultat.
+    Factorisé pour être appelé une fois par document dans un dossier multi-pièces."""
+    est_scan = len(analysis.texte.strip()) < 20
+
+    if est_scan:
+        st.warning("⚠️ Aucun texte numérique détecté — PDF scanné ou photo. "
+                   "Saisissez manuellement les montants.")
+        return MathResult(True, 0, 0, 0, 0, 0, False)
+
+    net_auto, cumul_auto = construire_math_result(analysis.texte)
+    if net_auto == 0.0:
+        st.info("ℹ️ Net imposable non détecté automatiquement — saisie manuelle.")
+    if cumul_auto == 0.0:
+        st.info("ℹ️ Cumul imposable non détecté automatiquement — saisie manuelle.")
+
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        net_saisi = st.number_input("Net imposable mensuel (€)", value=net_auto,
+                                    min_value=0.0, step=10.0,
+                                    help="Ligne « net imposable » de la fiche de paie",
+                                    key=f"{key_prefix}_net")
+    with c2:
+        nb_mois = st.number_input("Mois cumulés", value=1, min_value=1, max_value=36,
+                                  key=f"{key_prefix}_mois")
+    with c3:
+        cumul_saisi = st.number_input("Cumul imposable (€)", value=cumul_auto,
+                                      min_value=0.0, step=10.0, key=f"{key_prefix}_cumul")
+
+    math = analyser_math(net_saisi, int(nb_mois), cumul_saisi)
+    seuil = max(100.0, math.calcul_theorique * 0.08)
+
+    st.markdown("#### Résultats")
+    m1, m2, m3 = st.columns(3)
+    with m1:
+        st.metric("Cumul théorique", f"{math.calcul_theorique:.2f} €",
+                  help=f"{net_saisi} € × {nb_mois} mois")
+    with m2:
+        st.metric("Écart détecté", f"{math.ecart:.2f} €",
+                  delta=f"{math.ecart:.2f} €" if math.fraude_math else "OK",
+                  delta_color="inverse" if math.fraude_math else "off")
+    with m3:
+        st.metric("Seuil d'alerte", f"{seuil:.2f} €", help="8 % du cumul, min 100 €")
+
+    st.divider()
+    if math.fraude_math:
+        st.error(f"🚨 **ALERTE** — Écart de {math.ecart:.2f} € dépasse le seuil de {seuil:.2f} €")
+    elif math.calcul_theorique > 0 and math.cumul_imposable > 0:
+        st.success("✅ **CONFORME** — Cohérence mathématique validée")
+    else:
+        st.info("ℹ️ Saisissez les montants pour évaluer la cohérence.")
+
+    return math
+
+
+def _afficher_forensique_doc(analysis: PDFAnalysis, forensic: ForensicResult) -> None:
+    """Affiche le détail forensique en lecture seule pour UN document."""
+    col_a, col_b = st.columns(2)
+
+    with col_a:
+        st.markdown("**Intégrité du fichier**")
+        with st.expander("SHA-256 du fichier (empreinte complète)"):
+            st.code(forensic.hash_sha256, language="text")
+        xref_status = (f"🔴 Anormal — {forensic.incremental_updates} sauvegardes successives"
+                       if forensic.xref_anormal else "🟢 Normal (structure d'origine)")
+        if forensic.signature_detectee and not forensic.xref_anormal:
+            xref_status += " — cohérent avec signature électronique"
+        st.markdown(f"**Sections xref** : {xref_status}")
+        st.caption("Plusieurs sections xref = PDF remanié/édité après émission "
+                   "(au-delà de ce qu'explique une éventuelle signature électronique).")
+        st.markdown(f"**Signature électronique détectée** : "
+                    f"{'🟢 Oui' if forensic.signature_detectee else '⚪ Non'}")
+        date_modifiee_suffix = (" (signal faible, non compté dans le score : document signé)"
+                                if forensic.date_modifiee and forensic.signature_detectee else "")
+        st.markdown(f"**Date modifiée après création** : "
+                    f"{'🟠 Oui' if forensic.date_modifiee else '🟢 Non'}{date_modifiee_suffix}")
+
+    with col_b:
+        st.markdown("**Signaux suspects détectés**")
+        items = [
+            ("Outils d'édition graphique", forensic.fraude_meta,
+             ", ".join(forensic.logiciels_detectes) or "Aucun"),
+            ("JavaScript embarqué", forensic.javascript_suspect, ""),
+            ("Fichiers incorporés", forensic.fichiers_incorpores, ""),
+            ("Annotations superposées", forensic.annotations_suspectes, ""),
+        ]
+        for label, flag, detail in items:
+            icon = "🔴" if flag else "🟢"
+            suffix = f" — {detail}" if detail else ""
+            st.markdown(f"{icon} {label}{suffix}")
+        st.caption(f"Polices détectées : {len(forensic.fonts_detectees)}")
+
+    st.divider()
+    st.markdown(f"**Score forensique global : {forensic.score_risque_forensic}/100**")
+    st.progress(forensic.score_risque_forensic / 100)
+    if forensic.score_risque_forensic == 0:
+        st.success("✅ Aucun signal forensique détecté")
+    elif forensic.score_risque_forensic < 40:
+        st.warning("⚠️ Signaux faibles — à surveiller")
+    else:
+        st.error("🔴 Signaux forts — document potentiellement falsifié")
+
+    st.divider()
+    st.markdown("**Métadonnées du PDF**")
+    if analysis.metadata:
+        for k, v in analysis.metadata.items():
+            st.markdown(f"**{k} :** {v}")
+    else:
+        st.caption("Aucune métadonnée disponible (peut indiquer un nettoyage des métadonnées).")
+    if forensic.fonts_detectees:
+        with st.expander(f"Polices utilisées ({len(forensic.fonts_detectees)})"):
+            st.write(", ".join(forensic.fonts_detectees))
+
+
 def afficher_interface_expert() -> None:
     st.markdown("""
     <div style="background:linear-gradient(140deg,#0f172a,#1e3a8a);border:1px solid #f59e0b;
@@ -847,24 +1225,52 @@ def afficher_interface_expert() -> None:
 
     secrets = get_secrets()
 
-    fichier_pdf = st.file_uploader("📂 Déposez le PDF à auditer", type="pdf")
-    if fichier_pdf is None:
-        st.info("📌 Déposez un fichier PDF pour démarrer l'analyse complète.")
+    formule_label = st.selectbox("📦 Formule commandée par le client", list(FORMULES.keys()))
+    max_docs = FORMULES[formule_label]
+
+    if max_docs == 1:
+        fichier_unique = st.file_uploader("📂 Déposez le PDF à auditer", type="pdf")
+        fichiers = [fichier_unique] if fichier_unique is not None else []
+    else:
+        fichiers = st.file_uploader(
+            f"📂 Déposez jusqu'à {max_docs} PDF à auditer (formule « {formule_label} »)",
+            type="pdf", accept_multiple_files=True,
+        ) or []
+
+    if not fichiers:
+        st.info("📌 Déposez au moins un fichier PDF pour démarrer l'analyse.")
         return
 
-    if st.session_state.get("current_pdf_name") != fichier_pdf.name:
-        with st.spinner("🔍 Extraction et analyse du document…"):
-            analysis = extract_pdf_content(fichier_pdf)
-            st.session_state["analysis"] = analysis
-            st.session_state["current_pdf_name"] = fichier_pdf.name
-            st.session_state["forensic_result"] = analyser_forensic(analysis)
-            st.session_state.pop("math_result", None)
+    if len(fichiers) > max_docs:
+        st.error(f"❌ La formule « {formule_label} » autorise {max_docs} document(s) maximum — "
+                 f"{len(fichiers)} déposé(s). Retirez-en {len(fichiers) - max_docs} avant de continuer.")
+        return
 
-    analysis = st.session_state["analysis"]
-    forensic = st.session_state["forensic_result"]
+    est_dossier = len(fichiers) > 1
 
-    if analysis.error:
-        st.warning(f"⚠️ {analysis.error}")
+    noms_actuels = tuple(f.name for f in fichiers)
+    if st.session_state.get("current_dossier_noms") != noms_actuels:
+        st.session_state["current_dossier_noms"] = noms_actuels
+        st.session_state["docs_cache"] = {}
+
+    docs_meta = []
+    for i, f in enumerate(fichiers):
+        cache = st.session_state["docs_cache"].get(f.name)
+        if cache is None:
+            with st.spinner(f"🔍 Extraction et analyse de « {f.name} »…"):
+                analysis = extract_pdf_content(f)
+                forensic = analyser_forensic(analysis)
+                cache = {"analysis": analysis, "forensic": forensic}
+                st.session_state["docs_cache"][f.name] = cache
+
+        label_type = f"Type — « {f.name} »" if est_dossier else "Type de document"
+        type_doc = st.selectbox(label_type, TYPES_DOCUMENT, key=f"type_{i}_{f.name}")
+
+        if cache["analysis"].error:
+            st.warning(f"⚠️ « {f.name} » : {cache['analysis'].error}")
+
+        docs_meta.append({"nom": f.name, "type": type_doc,
+                          "analysis": cache["analysis"], "forensic": cache["forensic"]})
 
     tab1, tab2, tab3 = st.tabs([
         "📊 Cohérence financière", "🔎 Forensique PDF", "📤 Verdict & Rapport",
@@ -872,122 +1278,42 @@ def afficher_interface_expert() -> None:
 
     with tab1:
         st.subheader("Analyse de cohérence mathématique")
-        est_scan = len(analysis.texte.strip()) < 20
-
-        if est_scan:
-            st.warning("⚠️ Aucun texte numérique détecté — PDF scanné ou photo. "
-                       "Saisissez manuellement les montants.")
-            math = MathResult(True, 0, 0, 0, 0, 0, False)
-        else:
-            net_auto, cumul_auto = construire_math_result(analysis.texte)
-            if net_auto == 0.0:
-                st.info("ℹ️ Net imposable non détecté automatiquement — saisie manuelle.")
-            if cumul_auto == 0.0:
-                st.info("ℹ️ Cumul imposable non détecté automatiquement — saisie manuelle.")
-
-            c1, c2, c3 = st.columns(3)
-            with c1:
-                net_saisi = st.number_input("Net imposable mensuel (€)", value=net_auto,
-                                            min_value=0.0, step=10.0,
-                                            help="Ligne « net imposable » de la fiche de paie")
-            with c2:
-                nb_mois = st.number_input("Mois cumulés", value=1, min_value=1, max_value=36)
-            with c3:
-                cumul_saisi = st.number_input("Cumul imposable (€)", value=cumul_auto,
-                                              min_value=0.0, step=10.0)
-
-            math = analyser_math(net_saisi, int(nb_mois), cumul_saisi)
-            seuil = max(100.0, math.calcul_theorique * 0.08)
-
-            st.markdown("#### Résultats")
-            m1, m2, m3 = st.columns(3)
-            with m1:
-                st.metric("Cumul théorique", f"{math.calcul_theorique:.2f} €",
-                          help=f"{net_saisi} € × {nb_mois} mois")
-            with m2:
-                st.metric("Écart détecté", f"{math.ecart:.2f} €",
-                          delta=f"{math.ecart:.2f} €" if math.fraude_math else "OK",
-                          delta_color="inverse" if math.fraude_math else "off")
-            with m3:
-                st.metric("Seuil d'alerte", f"{seuil:.2f} €", help="8 % du cumul, min 100 €")
-
-            st.divider()
-            if math.fraude_math:
-                st.error(f"🚨 **ALERTE** — Écart de {math.ecart:.2f} € dépasse le seuil de {seuil:.2f} €")
-            elif math.calcul_theorique > 0 and math.cumul_imposable > 0:
-                st.success("✅ **CONFORME** — Cohérence mathématique validée")
+        maths = []
+        for i, d in enumerate(docs_meta):
+            if est_dossier:
+                with st.expander(f"« {d['nom']} » — {d['type']}", expanded=(i == 0)):
+                    maths.append(_afficher_coherence_financiere_doc(d["analysis"], key_prefix=f"m{i}"))
             else:
-                st.info("ℹ️ Saisissez les montants pour évaluer la cohérence.")
-
-        st.session_state["math_result"] = math
+                maths.append(_afficher_coherence_financiere_doc(d["analysis"], key_prefix=f"m{i}"))
+        st.session_state["maths_results"] = maths
 
     with tab2:
         st.subheader("Analyse forensique avancée")
-        col_a, col_b = st.columns(2)
-
-        with col_a:
-            st.markdown("**Intégrité du fichier**")
-            with st.expander("SHA-256 du fichier (empreinte complète)"):
-                st.code(forensic.hash_sha256, language="text")
-            xref_status = (f"🔴 Anormal — {forensic.incremental_updates} sauvegardes successives"
-                           if forensic.xref_anormal else "🟢 Normal (structure d'origine)")
-            if forensic.signature_detectee and not forensic.xref_anormal:
-                xref_status += " — cohérent avec signature électronique"
-            st.markdown(f"**Sections xref** : {xref_status}")
-            st.caption("Plusieurs sections xref = PDF remanié/édité après émission "
-                       "(au-delà de ce qu'explique une éventuelle signature électronique).")
-            st.markdown(f"**Signature électronique détectée** : "
-                        f"{'🟢 Oui' if forensic.signature_detectee else '⚪ Non'}")
-            date_modifiee_suffix = (" (signal faible, non compté dans le score : document signé)"
-                                    if forensic.date_modifiee and forensic.signature_detectee else "")
-            st.markdown(f"**Date modifiée après création** : "
-                        f"{'🟠 Oui' if forensic.date_modifiee else '🟢 Non'}{date_modifiee_suffix}")
-
-        with col_b:
-            st.markdown("**Signaux suspects détectés**")
-            items = [
-                ("Outils d'édition graphique", forensic.fraude_meta,
-                 ", ".join(forensic.logiciels_detectes) or "Aucun"),
-                ("JavaScript embarqué", forensic.javascript_suspect, ""),
-                ("Fichiers incorporés", forensic.fichiers_incorpores, ""),
-                ("Annotations superposées", forensic.annotations_suspectes, ""),
-            ]
-            for label, flag, detail in items:
-                icon = "🔴" if flag else "🟢"
-                suffix = f" — {detail}" if detail else ""
-                st.markdown(f"{icon} {label}{suffix}")
-            st.caption(f"Polices détectées : {len(forensic.fonts_detectees)}")
-
-        st.divider()
-        st.markdown(f"**Score forensique global : {forensic.score_risque_forensic}/100**")
-        st.progress(forensic.score_risque_forensic / 100)
-        if forensic.score_risque_forensic == 0:
-            st.success("✅ Aucun signal forensique détecté")
-        elif forensic.score_risque_forensic < 40:
-            st.warning("⚠️ Signaux faibles — à surveiller")
-        else:
-            st.error("🔴 Signaux forts — document potentiellement falsifié")
-
-        st.divider()
-        st.markdown("**Métadonnées du PDF**")
-        if analysis.metadata:
-            for k, v in analysis.metadata.items():
-                st.markdown(f"**{k} :** {v}")
-        else:
-            st.caption("Aucune métadonnée disponible (peut indiquer un nettoyage des métadonnées).")
-        if forensic.fonts_detectees:
-            with st.expander(f"Polices utilisées ({len(forensic.fonts_detectees)})"):
-                st.write(", ".join(forensic.fonts_detectees))
+        for i, d in enumerate(docs_meta):
+            if est_dossier:
+                with st.expander(f"« {d['nom']} » — {d['type']}", expanded=(i == 0)):
+                    _afficher_forensique_doc(d["analysis"], d["forensic"])
+            else:
+                _afficher_forensique_doc(d["analysis"], d["forensic"])
 
     with tab3:
         st.subheader("Verdict global et rapport")
-        math_r = st.session_state.get("math_result")
-        forensic_r = st.session_state.get("forensic_result")
-        if math_r is None or forensic_r is None:
-            st.warning("⚠️ Consultez d'abord les onglets précédents.")
+        maths = st.session_state.get("maths_results")
+        if maths is None or len(maths) != len(docs_meta):
+            st.warning("⚠️ Consultez d'abord l'onglet « Cohérence financière ».")
             return
 
-        verdict = calculer_verdict(math_r, forensic_r)
+        docs = [DocumentAnalyse(nom_fichier=d["nom"], type_document=d["type"],
+                                analysis=d["analysis"], forensic=d["forensic"], math=m)
+                for d, m in zip(docs_meta, maths)]
+
+        cross: Optional[CrossDocResult] = None
+        if est_dossier:
+            cross = analyser_dossier_croise(docs)
+            verdict = calculer_verdict_dossier(docs, cross)
+        else:
+            verdict = calculer_verdict(maths[0], docs_meta[0]["forensic"])
+
         colors_map = {"🔴": "#dc2626", "🟠": "#d97706", "🟢": "#16a34a"}
         color = colors_map.get(verdict.statut[0], "#94a3b8")
 
@@ -1001,12 +1327,26 @@ def afficher_interface_expert() -> None:
         """, unsafe_allow_html=True)
 
         st.progress(verdict.score_risque / 100)
-        st.caption("ℹ️ Indice d'anomalie **technique du document** — ne préjuge ni de la solvabilité "
-                   "ni de l'honnêteté du candidat. La décision finale appartient au bailleur.")
+        st.caption("ℹ️ Indice d'anomalie **technique du/des document(s)** — ne préjuge ni de la "
+                   "solvabilité ni de l'honnêteté du candidat. La décision finale appartient au bailleur.")
+
+        if est_dossier and cross is not None:
+            st.markdown("#### Cohérence entre les documents du dossier")
+            if cross.doublons_detectes:
+                st.error(f"🔴 Fichiers identiques déposés en double : "
+                         f"{', '.join(cross.fichiers_dupliques)}")
+            else:
+                st.success("✅ Aucun fichier dupliqué détecté")
+            if cross.ecarts_fiches_paie:
+                for msg in cross.ecarts_fiches_paie:
+                    st.warning(f"🟠 {msg}")
+            elif sum(1 for d in docs_meta if d["type"] == "Fiche de paie") > 1:
+                st.success("✅ Cohérence entre les fiches de paie du dossier")
+            st.divider()
 
         st.markdown("#### Recommandations")
         if verdict.score_risque >= 70:
-            st.error("Ce document présente des signaux d'alerte techniques importants")
+            st.error("Ce dossier présente des signaux d'alerte techniques importants")
             recs = ["🔴 **Suspendre la décision** — demander l'original au candidat",
                     "🔴 **Vérification humaine complémentaire** (employeur, organisme émetteur)",
                     "🔴 **Décision finale au bailleur** (aucune décision automatisée)"]
@@ -1023,8 +1363,11 @@ def afficher_interface_expert() -> None:
             st.markdown(f"- {rec}")
 
         st.divider()
-        pdf_bytes = build_report_pdf(verdict, forensic_r, math_r)
-        filename = get_report_filename(verdict.statut)
+        if est_dossier and cross is not None:
+            pdf_bytes = build_dossier_report_pdf(verdict, docs, cross)
+        else:
+            pdf_bytes = build_report_pdf(verdict, docs_meta[0]["forensic"], maths[0])
+        filename = get_report_filename(verdict.statut, dossier=est_dossier)
 
         st.markdown("#### Transmission du rapport")
         st.warning("⚠️ L'email standard n'est pas chiffré et ce rapport contient des données "

@@ -301,8 +301,13 @@ Gmail App Password : Compte Google → Sécurité → Validation 2 étapes → M
 - Le formulaire de commande passe par Brevo (UE) via `netlify/functions/order.js` — nécessite
   `BREVO_API_KEY` et `BREVO_SENDER_EMAIL` configurés dans Netlify (voir `CLAUDE.md`), sans
   quoi le formulaire renvoie une erreur
-- `app_vitrine.py` (Stripe test inclus) est **archivé** dans `archive/`, ne plus l'utiliser pour de
-  nouveaux déploiements — `index.html` est la vitrine de référence
+- `index.html` est la seule vitrine du projet (l'ancienne version Streamlit `app_vitrine.py`,
+  qui contenait un lien Stripe de test, a été supprimée du dépôt le 18 juillet 2026)
+- Depuis le 18 juillet 2026, `app_expert.py` sait analyser un **dossier de plusieurs documents**
+  (formules Sécurisé/Dossier Complet) avec cohérence croisée — voir le journal de session du
+  18 juillet dans `CLAUDE.md` pour le détail des nouvelles fonctions (`analyser_dossier_croise`,
+  `calculer_verdict_dossier`, `build_dossier_report_pdf`) ; cette section technique exhaustive
+  ci-dessus documente encore uniquement le flux mono-document, à mettre à jour si besoin
 
 ---
 
@@ -327,9 +332,7 @@ streamlit run app_expert.py --server.port 8502
 
 ## Points d'évolution identifiés
 
-- Configurer `BREVO_API_KEY` et `BREVO_SENDER_EMAIL` dans Netlify (cf. Limites connues)
 - Finaliser le déploiement Render et renseigner son URL dans `BAILSAFE_CONTEXTE.md`
-- Décider si `archive/app_vitrine.py` doit être retiré du dépôt GitHub distant
 - Possibilité d'intégrer n8n pour automatiser la réception + envoi du rapport
 - Potentiel chatbot/agent d'accueil sur la vitrine
 - Export rapport en DOCX en plus du PDF

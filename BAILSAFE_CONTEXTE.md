@@ -22,7 +22,7 @@ Service d'audit anti-fraude documentaire pour propriétaires bailleurs. Le clien
 
 ### Stack
 - **Langage :** Python
-- **Framework :** Streamlit (app_vitrine + app_expert)
+- **Framework :** Streamlit (app_expert.py — la vitrine est standalone HTML, voir index.html)
 - **Génération rapport :** ReportLab (PDF)
 - **Extraction PDF :** pdfplumber
 - **Formulaire de commande :** fonction serverless Netlify (`netlify/functions/order.js`) → Brevo (UE)
@@ -35,7 +35,7 @@ Service d'audit anti-fraude documentaire pour propriétaires bailleurs. Le clien
 | `app_expert.py` | Interface d'analyse pour Nolan | Render (BailSafe-expert) |
 | `index.html` | Vitrine standalone — **version en ligne** | Netlify — https://bail-safe.netlify.app/ |
 | `MODELE_INFORMATION_CANDIDAT.md` | Modèle d'info RGPD art. 13/14 à remettre au candidat | — |
-| `archive/app_vitrine.py` | Ancienne landing page Streamlit — **archivée, ne plus utiliser** | — (remplacée par `index.html`) |
+| `tests/test_app_expert.py` | Tests automatisés (pytest) des fonctions pures de `app_expert.py` | — |
 
 ---
 
@@ -156,7 +156,6 @@ Service d'audit anti-fraude documentaire pour propriétaires bailleurs. Le clien
 
 **TODO restants (nécessitent une action manuelle de Nolan, hors de portée d'une correction de code) :**
 - Finaliser le déploiement Render et renseigner son URL
-- Décider si `archive/app_vitrine.py` doit être retiré du dépôt GitHub distant
 
 ---
 
@@ -177,7 +176,20 @@ Service d'audit anti-fraude documentaire pour propriétaires bailleurs. Le clien
   `BREVO_API_KEY` et `BREVO_SENDER_EMAIL` dans Netlify → Environment Variables (voir tableau
   plus haut). Le formulaire de commande ne peut pas envoyer d'email tant que ce n'est pas fait.
 - Finaliser le déploiement Render et renseigner son URL
-- Décider si `archive/app_vitrine.py` doit être retiré du dépôt GitHub distant
+
+---
+
+## Corrections apportées (session 18 juillet 2026)
+
+- **Analyse multi-documents automatisée** pour les formules Sécurisé (2 documents) et Dossier
+  Complet (4 documents) : choix de la formule, upload multiple, analyse individuelle par
+  document, cohérence croisée (doublons de fichiers, écarts anormaux entre fiches de paie),
+  verdict global au score forensique le plus élevé, rapport PDF combiné, envoi/téléchargement
+  unique. Voir `CLAUDE.md` pour le détail des nouvelles fonctions.
+- **Tests automatisés** : 27 tests pytest ajoutés (`tests/test_app_expert.py`), le projet n'en
+  avait aucun jusqu'ici.
+- `archive/app_vitrine.py` supprimé du dépôt (décision tranchée : plus utile, récupérable via
+  git si besoin).
 
 ---
 
