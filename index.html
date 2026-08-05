@@ -4,17 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BailSafe | Détection de Fraude Documentaire — Analyse Forensique</title>
-    <meta name="description" content="BailSafe détecte les fiches de paie et avis d'imposition falsifiés grâce à une analyse forensique de PDF. Rapport sous 24h, à partir de 59 € TTC.">
+    <meta name="description" content="BailSafe détecte les fiches de paie et avis d'imposition falsifiés grâce à une analyse forensique de PDF. Rapport sous 24h, à partir de 69 € TTC.">
     <meta name="robots" content="index, follow">
     <link rel="canonical" href="https://bail-safe.netlify.app/">
     <meta property="og:type" content="website">
     <meta property="og:locale" content="fr_FR">
     <meta property="og:title" content="BailSafe | Détection de fraude documentaire pour bailleurs">
-    <meta property="og:description" content="Analyse forensique de PDF pour détecter les faux dossiers de location. Rapport sous 24h, à partir de 59 € TTC.">
+    <meta property="og:description" content="Analyse forensique de PDF pour détecter les faux dossiers de location. Rapport sous 24h, à partir de 69 € TTC.">
     <meta property="og:url" content="https://bail-safe.netlify.app/">
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='5' fill='%231C2B29'/%3E%3Cpath d='M12 3.5 L18.5 6 V11.5 C18.5 15.5 15.8 18.7 12 20.2 C8.2 18.7 5.5 15.5 5.5 11.5 V6 Z' fill='%23C9A94A'/%3E%3C/svg%3E">
     <script type="application/ld+json">
-    {"@context":"https://schema.org","@type":"Service","name":"BailSafe — Audit anti-fraude documentaire","description":"Analyse forensique de documents PDF pour détecter les falsifications.","provider":{"@type":"Person","name":"Nolan Bunet","email":"bunetnolan@gmail.com"},"areaServed":"FR","offers":{"@type":"AggregateOffer","priceCurrency":"EUR","lowPrice":"59","highPrice":"229","offerCount":"3"}}
+    {"@context":"https://***@type":"Service","name":"BailSafe — Audit anti-fraude documentaire","description":"Analyse forensique de documents PDF pour détecter les falsifications.","provider":{"@type":"Person","name":"Nolan Bunet","email":"bunetnolan@gmail.com"},"areaServed":"FR","offers":{"@type":"AggregateOffer","priceCurrency":"EUR","lowPrice":"69","highPrice":"299","offerCount":"3"}}
     </script>
 
     <style>
@@ -61,6 +61,8 @@
         .btn-primary:hover { background: var(--cta-hover); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(240,137,30,0.35); }
         .btn-outline { background: transparent; color: var(--text-on-ink); padding: 16px 36px; border-radius: 8px; font-size: 16px; font-weight: 600; border: 2px solid rgba(201,169,74,0.4); cursor: pointer; text-decoration: none; }
         .btn-outline:hover { border-color: var(--seal-light); background: rgba(201,169,74,0.08); }
+        .btn-paypal { background: #0070BA; color: #fff; padding: 18px 40px; border-radius: 8px; font-size: 17px; font-weight: 700; border: none; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 10px; transition: all 0.2s; }
+        .btn-paypal:hover { background: #005EA6; transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,112,186,0.4); }
         .hero-badges { display: flex; flex-wrap: wrap; gap: 16px; justify-content: center; margin-top: 40px; }
         .hero-badge { display: flex; align-items: center; gap: 8px; color: var(--text-on-ink-muted); font-size: 13px; }
 
@@ -71,6 +73,13 @@
         .section-title { font-size: clamp(28px, 4vw, 40px); font-weight: 700; color: var(--ink); margin-bottom: 16px; line-height: 1.2; }
         .section-sub { font-size: 17px; color: var(--text-muted); max-width: 600px; margin-bottom: 40px; }
 
+        /* HOW IT WORKS */
+        .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 24px; margin-bottom: 48px; }
+        .step { text-align: center; padding: 32px 20px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; }
+        .step-num { display: inline-flex; width: 44px; height: 44px; align-items: center; justify-content: center; background: var(--seal-soft); color: var(--seal); border-radius: 50%; font-size: 20px; font-weight: 700; margin-bottom: 16px; }
+        .step h3 { font-size: 17px; font-weight: 700; color: var(--ink); margin-bottom: 8px; }
+        .step p { font-size: 14px; color: var(--text-muted); }
+
         /* CARDS */
         .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 24px; }
         .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 32px; transition: transform 0.2s, box-shadow 0.2s; }
@@ -78,6 +87,11 @@
         .card-icon { font-size: 32px; margin-bottom: 16px; }
         .card h3 { font-size: 18px; font-weight: 700; color: var(--ink); margin-bottom: 8px; }
         .card p { font-size: 14px; color: var(--text-muted); line-height: 1.6; }
+
+        /* TRUST STRIP */
+        .trust-strip { display: flex; flex-wrap: wrap; justify-content: center; gap: 32px; padding: 24px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; max-width: 800px; margin: 0 auto 48px; }
+        .trust-item { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--text-muted); }
+        .trust-item .t-icon { font-size: 20px; }
 
         /* PRICING */
         .pricing { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; align-items: start; }
@@ -124,12 +138,18 @@
         .gdpr-checkbox.field-error { border-color: var(--stamp); background: #FFF5F5; }
         .gdpr-checkbox a { color: var(--seal); text-decoration: underline; }
 
-        /* PAYMENT CONFIRM */
-        .payment-confirm { display: none; background: var(--verified-soft); border: 2px solid var(--verified-light); border-radius: 16px; padding: 40px; text-align: center; max-width: 600px; margin: 0 auto; }
-        .payment-confirm.visible { display: block; }
-        .payment-confirm .check-icon { font-size: 56px; margin-bottom: 16px; }
-        .payment-confirm h3 { font-size: 24px; color: var(--verified-dark); margin-bottom: 12px; }
-        .payment-confirm p { color: var(--verified); margin-bottom: 8px; font-size: 14px; }
+        /* PAYMENT CONFIRM — redesigned with PayPal step */
+        .payment-flow { display: none; max-width: 600px; margin: 0 auto; }
+        .payment-flow.visible { display: block; }
+        .payment-step { text-align: center; padding: 24px; }
+        .payment-step .step-emoji { font-size: 48px; margin-bottom: 16px; }
+        .payment-step h3 { font-size: 22px; font-weight: 700; color: var(--ink); margin-bottom: 12px; }
+        .payment-step p { color: var(--text-muted); font-size: 15px; margin-bottom: 20px; line-height: 1.6; }
+        .payment-step .amount-box { display: inline-block; background: var(--seal-soft); padding: 12px 28px; border-radius: 10px; font-size: 28px; font-weight: 700; color: var(--seal); margin-bottom: 16px; }
+        .payment-divider { display: flex; align-items: center; gap: 16px; margin: 24px 0; color: var(--text-muted); font-size: 13px; }
+        .payment-divider::before, .payment-divider::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+        .payment-note { background: var(--verified-soft); border: 1px solid var(--verified-light); border-radius: 10px; padding: 16px; margin-top: 20px; text-align: left; font-size: 13px; color: var(--verified); }
+        .payment-note strong { color: var(--ink); }
 
         /* MODAL */
         .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(28,43,41,0.85); z-index: 100; align-items: center; justify-content: center; padding: 24px; }
@@ -154,7 +174,7 @@
         .footer-links a:hover { color: var(--text-on-ink); }
 
         /* SCANNER */
-        .scanner { background: var(--ink); border-radius: 16px; padding: 40px; max-width: 700px; margin: 60px auto 0; border: 1px solid rgba(169,184,178,0.2); }
+        .scanner { background: var(--ink); border-radius: 16px; padding: 40px; max-width: 700px; margin: 60px auto 0; border: 1px solid rgba(169,184,178,0.2); scroll-margin-top: 80px; }
         .scanner-header { display: flex; align-items: center; gap: 10px; margin-bottom: 24px; }
         .scanner-dot { width: 10px; height: 10px; border-radius: 50%; }
         .scanner-dot.r { background: #EF4444; } .scanner-dot.y { background: #F59E0B; } .scanner-dot.g { background: #22C55E; }
@@ -173,6 +193,19 @@
         .reveal { opacity: 0; transform: translateY(24px); transition: opacity 0.6s, transform 0.6s; }
         .reveal.is-visible { opacity: 1; transform: translateY(0); }
         .guarantee { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 16px; color: var(--verified); font-size: 14px; font-weight: 600; }
+
+        /* RECAP COMMANDE */
+        .recap-box { background: var(--verified-soft); border: 1px solid var(--verified-light); border-radius: 10px; padding: 16px 20px; margin-bottom: 20px; }
+        .recap-title { font-size: 14px; font-weight: 700; color: var(--verified); margin-bottom: 10px; }
+        .recap-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .recap-label { font-size: 12px; color: var(--text-muted); }
+        .recap-value { font-size: 14px; font-weight: 600; color: var(--ink); }
+        .recap-total { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; padding-top: 8px; margin-top: 4px; border-top: 2px solid var(--verified-light); font-size: 16px; font-weight: 700; color: var(--verified); }
+
+        /* SUBMIT AREA */
+        .submit-area { margin-top: 12px; }
+        .urgency-line { text-align: center; font-size: 13px; color: var(--cta); margin-bottom: 12px; font-weight: 600; }
+        .guarantee-inline { text-align: center; margin-top: 10px; font-size: 12px; color: var(--verified); font-weight: 600; }
 
         @media (max-width: 768px) {
             .form-section { padding: 24px; }
@@ -205,8 +238,8 @@
         <h1>Un faux dossier de location peut vous coûter <span>18 mois d'expulsion</span></h1>
         <p>BailSafe analyse les fiches de paie, avis d'imposition et contrats de travail pour détecter les falsifications avant la signature du bail.</p>
         <div class="hero-ctas">
-            <a href="#commander" class="btn-primary">🛡 Auditer un dossier — à partir de 59 €</a>
-            <a href="#comment" class="btn-outline">Voir la démo d'analyse ↓</a>
+            <a href="#commander" class="btn-primary">🛡 Auditer un dossier — à partir de 69 €</a>
+            <a href="#scanner" class="btn-outline">Voir la démo d'analyse ↓</a>
         </div>
         <div class="hero-badges">
             <div class="hero-badge">⚡ Rapport sous 24h</div>
@@ -216,12 +249,39 @@
     </div>
 </section>
 
-<!-- ═══════════ SCANNER DEMO ═══════════ -->
+<!-- ═══════════ HOW IT WORKS ═══════════ -->
 <section id="comment"><div class="section-inner">
-    <div class="section-label">Démonstration</div>
-    <h2 class="section-title">Ce que BailSafe détecte en quelques secondes</h2>
-    <p class="section-sub">Une analyse automatisée de la structure interne du PDF — aucune compétence technique requise.</p>
-    <div class="scanner reveal">
+    <div class="section-label">Comment ça marche</div>
+    <h2 class="section-title">3 étapes, zéro compétence technique</h2>
+    <p class="section-sub">Déposez vos documents, payez, recevez votre rapport. Simple.</p>
+    <div class="steps">
+        <div class="step reveal">
+            <div class="step-num">1</div>
+            <h3>Déposez vos documents</h3>
+            <p>Glissez-déposez les PDF du candidat (fiche de paie, avis d'imposition, contrat de travail). Formulaire 100% sécurisé.</p>
+        </div>
+        <div class="step reveal">
+            <div class="step-num">2</div>
+            <h3>Payez par PayPal</h3>
+            <p>Paiement sécurisé en ligne. Vous n'avez pas besoin de compte PayPal — une carte bancaire suffit.</p>
+        </div>
+        <div class="step reveal">
+            <div class="step-num">3</div>
+            <h3>Recevez votre rapport</h3>
+            <p>Rapport PDF détaillé livré par email sous 24h. Analyse forensique complète + cohérence financière.</p>
+        </div>
+    </div>
+
+    <div class="trust-strip reveal">
+        <div class="trust-item"><span class="t-icon">🇫🇷</span> Hébergé en France</div>
+        <div class="trust-item"><span class="t-icon">🔒</span> Données chiffrées</div>
+        <div class="trust-item"><span class="t-icon">📋</span> Conforme RGPD</div>
+        <div class="trust-item"><span class="t-icon">🔄</span> Satisfait ou remboursé</div>
+        <div class="trust-item"><span class="t-icon">⚡</span> Réponse moyenne : 6h</div>
+    </div>
+
+    <!-- SCANNER DEMO -->
+    <div class="scanner reveal" id="scanner">
         <div class="scanner-header"><div class="scanner-dot r"></div><div class="scanner-dot y"></div><div class="scanner-dot g"></div><span style="color:var(--text-on-ink-muted);font-size:12px;margin-left:8px;">bailsafe — analyse forensique</span></div>
         <div class="scanner-line"><span class="label">SHA-256</span><span class="value ok">e3b0c442...d41d8cd9 ✅</span></div>
         <div class="scanner-line"><span class="label">Structure xref</span><span class="value ok">Origine — 1 section ✅</span></div>
@@ -257,37 +317,37 @@
         </div>
     </div>
     <p style="text-align:center;margin-top:32px;font-size:28px;font-weight:700;color:#EF4444">3 000 € de perte minimum</p>
-    <p style="text-align:center;color:var(--text-on-ink-muted);font-size:14px">BailSafe coûte <strong style="color:var(--seal-light)">59 €</strong>. C'est 50× moins qu'un seul dossier frauduleux.</p>
+    <p style="text-align:center;color:var(--text-on-ink-muted);font-size:14px">BailSafe coûte <strong style="color:var(--seal-light)">69 €</strong>. C'est 43× moins qu'un seul dossier frauduleux.</p>
 </div></section>
 
 <!-- ═══════════ TARIFS ═══════════ -->
 <section id="tarifs"><div class="section-inner">
     <div class="section-label">Tarifs</div>
     <h2 class="section-title">Une formule pour chaque situation</h2>
-    <p class="section-sub">Paiement sécurisé par carte bancaire. Rapport PDF sous 24h.</p>
+    <p class="section-sub">Paiement sécurisé par PayPal (carte bancaire acceptée, pas besoin de compte). Rapport PDF sous 24h.</p>
 
     <div class="pricing">
         <div class="pricing-card reveal">
-            <h3>Essentiel</h3><div class="price">59 €</div><div class="price-sub">TTC — 1 document</div>
+            <h3>Essentiel</h3><div class="price">69 €</div><div class="price-sub">TTC — 1 document</div>
             <ul>
                 <li>1 document analysé</li><li>Analyse forensique complète</li><li>Cohérence financière</li><li>Rapport PDF professionnel</li><li>Livraison sous 24h</li>
             </ul>
-            <button class="pricing-cta primary" onclick="selectFormule('Essentiel')">Choisir Essentiel</button>
+            <button class="pricing-cta primary" onclick="selectFormule('Essentiel')">Choisir Essentiel · 69 €</button>
         </div>
         <div class="pricing-card featured reveal">
             <div class="pricing-badge">⭐ Recommandé</div>
-            <h3>Sécurisé</h3><div class="price">129 €</div><div class="price-sub">TTC — jusqu'à 2 documents</div>
+            <h3>Sécurisé</h3><div class="price">149 €</div><div class="price-sub">TTC — jusqu'à 2 documents</div>
             <ul>
                 <li>Jusqu'à 2 documents</li><li>Analyse forensique ×2</li><li>Cohérence croisée entre documents</li><li>Détection de doublons</li><li>Rapport PDF combiné</li><li>Livraison sous 24h</li>
             </ul>
-            <button class="pricing-cta primary" onclick="selectFormule('Securise')">Choisir Sécurisé</button>
+            <button class="pricing-cta primary" onclick="selectFormule('Securise')">Choisir Sécurisé · 149 €</button>
         </div>
         <div class="pricing-card reveal">
-            <h3>Dossier Complet</h3><div class="price">229 €</div><div class="price-sub">TTC — jusqu'à 4 documents</div>
+            <h3>Dossier Complet</h3><div class="price">299 €</div><div class="price-sub">TTC — jusqu'à 4 documents</div>
             <ul>
                 <li>Jusqu'à 4 documents</li><li>Analyse forensique ×4</li><li>Cohérence croisée avancée</li><li>Traitement prioritaire</li><li>Rapport PDF détaillé</li><li>Livraison sous 12h</li>
             </ul>
-            <button class="pricing-cta secondary" onclick="selectFormule('Complet')">Choisir Dossier Complet</button>
+            <button class="pricing-cta secondary" onclick="selectFormule('Complet')">Choisir Dossier Complet · 299 €</button>
         </div>
     </div>
 </div></section>
@@ -296,7 +356,7 @@
 <section id="commander" style="background:var(--paper-2)"><div class="section-inner">
     <div class="section-label">Commander</div>
     <h2 class="section-title" style="text-align:center">Déposez votre dossier, payez, recevez votre rapport</h2>
-    <p class="section-sub" style="text-align:center;margin:0 auto 40px">3 étapes simples. Paiement 100% sécurisé.</p>
+    <p class="section-sub" style="text-align:center;margin:0 auto 40px">Formulaire sécurisé. Paiement PayPal (carte bancaire acceptée).</p>
 
     <div id="form-section" class="form-section reveal">
         <form id="orderForm" onsubmit="return false;">
@@ -304,11 +364,22 @@
                 <label for="formule">Formule choisie *</label>
                 <select id="formule" required>
                     <option value="">— Sélectionnez —</option>
-                    <option value="Essentiel">Essentiel — 1 document (59 €)</option>
-                    <option value="Securise">Sécurisé — 2 documents (129 €)</option>
-                    <option value="Complet">Dossier Complet — jusqu'à 4 documents (229 €)</option>
+                    <option value="Essentiel">Essentiel — 1 document (69 €)</option>
+                    <option value="Securise">Sécurisé — 2 documents (149 €)</option>
+                    <option value="Complet">Dossier Complet — jusqu'à 4 documents (299 €)</option>
                 </select>
                 <div class="field-error-msg" id="err-formule">Veuillez choisir une formule.</div>
+            </div>
+
+            <!-- RECAP COMMANDE -->
+            <div id="recapCommande" class="recap-box" style="display:none">
+                <div class="recap-title">✅ Votre commande</div>
+                <div class="recap-grid">
+                    <div><span class="recap-label">Formule</span><span class="recap-value" id="recapNom">—</span></div>
+                    <div><span class="recap-label">Documents</span><span class="recap-value" id="recapDocs">—</span></div>
+                    <div><span class="recap-label">Livraison</span><span class="recap-value" id="recapDelai">—</span></div>
+                    <div class="recap-total"><span>Total</span><span id="recapPrix">—</span></div>
+                </div>
             </div>
 
             <div class="form-group">
@@ -336,18 +407,40 @@
             <div class="gdpr-checkbox"><input type="checkbox" id="retractation"><label for="retractation">Je reconnais que le service débute immédiatement après paiement et renonce à mon droit de rétractation (art. L221-28 Code de la consommation)</label></div>
             <div class="gdpr-checkbox"><input type="checkbox" id="gdpr"><label for="gdpr">J'accepte que mes données soient traitées conformément à la <a href="#" onclick="openModal('modal-confidentialite');return false">politique de confidentialité</a></label></div>
 
-            <button type="submit" id="submitBtn" class="btn-primary" style="width:100%;font-size:17px;padding:18px;margin-top:16px" onclick="handleSubmit()">
-                <span id="submitText">🔒 Payer et envoyer — </span><span id="submitPrice">59 €</span>
-            </button>
+            <div class="submit-area">
+                <div class="urgency-line">⚡ Délai moyen de traitement : <strong>6h</strong> — commandez maintenant pour un rapport aujourd'hui</div>
+                <button type="submit" id="submitBtn" class="btn-primary" style="width:100%;font-size:18px;padding:20px" onclick="handleSubmit()">
+                    <span id="submitText">🛡 Commander mon analyse — </span><span id="submitPrice">69 €</span>
+                </button>
+                <div class="guarantee-inline">🛡 Satisfait ou remboursé sous 14 jours · Paiement PayPal sécurisé · Données chiffrées</div>
+            </div>
         </form>
-        <div class="guarantee">🛡 Satisfait ou remboursé — garantie 14 jours</div>
     </div>
 
-    <div id="paymentConfirm" class="payment-confirm">
-        <div class="check-icon">✅</div>
-        <h3>Commande confirmée !</h3>
-        <p>Votre dossier a bien été transmis. Vous recevrez votre rapport d'analyse sous 24h.</p>
-        <p style="font-size:12px;color:var(--text-muted);margin-top:12px">Un email de confirmation vous a été envoyé avec le récapitulatif.</p>
+    <!-- ═══ POST-FORM: PAYPAL PAYMENT STEP ═══ -->
+    <div id="paymentFlow" class="payment-flow">
+        <div class="payment-step">
+            <div class="step-emoji">✅</div>
+            <h3>Dossier transmis avec succès !</h3>
+            <p>Vos documents ont bien été réceptionnés. Pour valider votre commande, procédez au paiement :</p>
+            <div class="amount-box" id="paypalAmount">69 €</div>
+            <a class="btn-paypal" id="paypalLink" href="https://paypal.me/NolanBunet/69EUR" target="_blank" rel="noopener">
+                <span style="font-size:22px">🅿</span> Payer avec PayPal
+            </a>
+            <p style="font-size:12px;color:var(--text-muted);margin-top:8px">Carte bancaire acceptée — pas besoin de compte PayPal</p>
+
+            <div class="payment-divider">Ce qui se passe ensuite</div>
+
+            <div class="payment-note">
+                <p><strong>1.</strong> Vous payez <span id="paypalNoteAmount">69 €</span> via PayPal (lien ci-dessus).</p>
+                <p><strong>2.</strong> Nolan vérifie le paiement et lance l'analyse — <strong>délai moyen de traitement : 6h</strong>.</p>
+                <p><strong>3.</strong> Vous recevez le rapport PDF par email. Un email de confirmation avec le récapitulatif vient de vous être envoyé.</p>
+            </div>
+
+            <p style="margin-top:16px;font-size:13px;color:var(--text-muted)">
+                ❓ Une question ? <a href="mailto:bunetnolan@gmail.com" style="color:var(--seal);text-decoration:underline">bunetnolan@gmail.com</a>
+            </p>
+        </div>
     </div>
 </div></section>
 
@@ -377,10 +470,10 @@
     <h3>2. Services</h3>
     <p>BailSafe fournit une analyse technique automatisée de documents PDF visant à détecter des anomalies structurelles et incohérences financières. <strong>Le rapport ne constitue pas une garantie juridique :</strong> la décision d'accepter ou refuser un dossier locatif appartient exclusivement au Client.</p>
     <h3>3. Tarifs</h3>
-    <ul><li>Essentiel : 59 € TTC — 1 document</li><li>Sécurisé : 129 € TTC — jusqu'à 2 documents avec cohérence croisée</li><li>Dossier Complet : 229 € TTC — jusqu'à 4 documents, prioritaire</li></ul>
+    <ul><li>Essentiel : 69 € TTC — 1 document</li><li>Sécurisé : 149 € TTC — jusqu'à 2 documents avec cohérence croisée</li><li>Dossier Complet : 299 € TTC — jusqu'à 4 documents, prioritaire</li></ul>
     <p>TVA non applicable — art. 293 B du CGI (micro-entrepreneur).</p>
     <h3>4. Commande et paiement</h3>
-    <p>La commande est validée après soumission du formulaire avec documents + acceptation des CGV + paiement intégral. Un email de confirmation est envoyé.</p>
+    <p>La commande est validée après soumission du formulaire avec documents + acceptation des CGV + paiement intégral via PayPal. Un email de confirmation est envoyé.</p>
     <h3>5. Délai de livraison</h3>
     <p>Rapport livré par email sous 24h ouvrées (12h pour Dossier Complet), à compter de la réception du paiement et des documents.</p>
     <h3>6. Droit de rétractation</h3>
@@ -418,14 +511,14 @@
     <h3>3. Finalités</h3>
     <ul><li>Exécution du contrat : traitement de la commande, analyse, envoi du rapport</li><li>Intérêt légitime : prévention de la fraude dans le cadre d'un bail</li><li>Obligation légale : conservation des données comptables (10 ans)</li></ul>
     <h3>4. Destinataires</h3>
-    <ul><li><strong>Netlify</strong> (hébergement) — données de formulaire</li><li><strong>Brevo</strong> (emails transactionnels) — Paris, France (UE)</li><li><strong>Stripe</strong> (paiement) — certifié PCI-DSS</li></ul>
+    <ul><li><strong>Netlify</strong> (hébergement) — données de formulaire</li><li><strong>Brevo</strong> (emails transactionnels) — Paris, France (UE)</li><li><strong>PayPal</strong> (paiement) — certifié PCI-DSS</li></ul>
     <p>Les documents PDF sont analysés en mémoire volatile, sans stockage permanent.</p>
     <h3>5. Durée de conservation</h3>
     <ul><li>Documents PDF : non conservés (mémoire volatile)</li><li>Rapports : 30 jours max</li><li>Données de facturation : 10 ans</li></ul>
     <h3>6. Vos droits</h3>
     <p>Accès, rectification, effacement, limitation, opposition (RGPD art. 15-21) : <strong>bunetnolan@gmail.com</strong> — réponse sous 30 jours. Réclamation possible auprès de la CNIL : cnil.fr</p>
     <h3>7. Transfert hors UE</h3>
-    <p>Données traitées au sein de l'UE (France). Aucun transfert hors UE de données personnelles.</p>
+    <p>Données traitées au sein de l'UE (France). PayPal est certifié Privacy Shield / clauses contractuelles types.</p>
 </div></div>
 
 <div class="modal-overlay" id="modal-rgpd"><div class="modal">
@@ -450,10 +543,11 @@
 
 <script>
 const ORDER_ENDPOINT = "/.netlify/functions/order";
+const PAYPAL_BASE = "https://paypal.me/NolanBunet";
 const FORMULES = {
-    "Essentiel":  { max: 1, price: 59,  label: "Essentiel — 1 document (59 €)" },
-    "Securise":   { max: 2, price: 129, label: "Sécurisé — 2 documents (129 €)" },
-    "Complet":    { max: 4, price: 229, label: "Dossier Complet — jusqu'à 4 documents (229 €)" }
+    "Essentiel":  { max: 1, price: 69,  label: "Essentiel — 1 document (69 €)",  paypal: PAYPAL_BASE + "/69EUR" },
+    "Securise":   { max: 2, price: 149, label: "Sécurisé — 2 documents (149 €)", paypal: PAYPAL_BASE + "/149EUR" },
+    "Complet":    { max: 4, price: 299, label: "Dossier Complet — jusqu'à 4 documents (299 €)", paypal: PAYPAL_BASE + "/299EUR" }
 };
 let selectedFormule = null, uploadedFiles = [];
 
@@ -463,15 +557,31 @@ function selectFormule(key) {
     document.getElementById('formule').classList.remove('field-error');
     document.getElementById('err-formule').classList.remove('show');
     document.getElementById('submitPrice').textContent = FORMULES[key].price + ' €';
+    updateRecap(key);
     document.getElementById('commander').scrollIntoView({behavior:'smooth',block:'start'});
 }
 document.getElementById('formule').addEventListener('change', function() {
     for (const [k,f] of Object.entries(FORMULES)) if (f.label===this.value) selectedFormule=k;
-    if (selectedFormule) document.getElementById('submitPrice').textContent = FORMULES[selectedFormule].price + ' €';
+    if (selectedFormule) {
+        document.getElementById('submitPrice').textContent = FORMULES[selectedFormule].price + ' €';
+        updateRecap(selectedFormule);
+    }
     this.classList.remove('field-error'); document.getElementById('err-formule').classList.remove('show');
 });
 
-const dropZone = document.getElementById('dropZone'), fileInput = document.getElementById('fileInput'), fileList = document.getElementById('fileList');
+function updateRecap(key) {
+    const f = FORMULES[key];
+    const noms = { Essentiel: 'Essentiel', Securise: 'Sécurisé', Complet: 'Dossier Complet' };
+    const delais = { Essentiel: 'Sous 24h', Securise: 'Sous 24h', Complet: 'Sous 12h (prioritaire)' };
+    const docs = { Essentiel: '1 document', Securise: 'Jusqu\'à 2 documents', Complet: 'Jusqu\'à 4 documents' };
+    document.getElementById('recapNom').textContent = noms[key];
+    document.getElementById('recapDocs').textContent = docs[key];
+    document.getElementById('recapDelai').textContent = delais[key];
+    document.getElementById('recapPrix').textContent = f.price + ' € TTC';
+    document.getElementById('recapCommande').style.display = 'block';
+}
+
+const dropZone = document.getElementById('dropZone'), fileInput = document.getElementById('fileInput'), fileListEl = document.getElementById('fileList');
 dropZone.addEventListener('click', ()=>fileInput.click());
 dropZone.addEventListener('dragover', e=>{e.preventDefault();dropZone.classList.add('drag-over')});
 dropZone.addEventListener('dragleave', ()=>dropZone.classList.remove('drag-over'));
@@ -489,7 +599,7 @@ function addFiles(files) {
 }
 function removeFile(i) { uploadedFiles.splice(i,1); renderFileList(); }
 function renderFileList() {
-    fileList.innerHTML = uploadedFiles.length ? uploadedFiles.map((f,i)=>`<div class="file-item"><span>📄 ${f.name} <span style="color:var(--text-muted);font-size:11px">(${(f.size/1024).toFixed(0)} ko)</span></span><span class="remove-file" onclick="removeFile(${i})">✕</span></div>`).join('') : '';
+    fileListEl.innerHTML = uploadedFiles.length ? uploadedFiles.map((f,i)=>`<div class="file-item"><span>📄 ${f.name} <span style="color:var(--text-muted);font-size:11px">(${(f.size/1024).toFixed(0)} ko)</span></span><span class="remove-file" onclick="removeFile(${i})">✕</span></div>`).join('') : '';
 }
 
 async function handleSubmit() {
@@ -528,16 +638,25 @@ async function handleSubmit() {
         uploadedFiles.forEach(f=>fd.append('documents',f));
         const r=await fetch(ORDER_ENDPOINT,{method:'POST',body:fd});
         if(r.ok) {
+            // Hide form, show PayPal step
             document.getElementById('form-section').style.display='none';
-            document.getElementById('paymentConfirm').classList.add('visible');
-            document.getElementById('paymentConfirm').scrollIntoView({behavior:'smooth',block:'center'});
-            showToast('✅ Commande confirmée ! Vérifiez votre boîte email.');
+            const flow = document.getElementById('paymentFlow');
+            flow.classList.add('visible');
+            flow.scrollIntoView({behavior:'smooth',block:'center'});
+
+            // Update PayPal link and amount
+            const fdata = FORMULES[selectedFormule] || FORMULES['Essentiel'];
+            document.getElementById('paypalAmount').textContent = fdata.price + ' €';
+            document.getElementById('paypalLink').href = fdata.paypal;
+            document.getElementById('paypalNoteAmount').textContent = fdata.price + ' €';
+
+            showToast('✅ Dossier envoyé ! Payez via PayPal pour valider.');
         } else {
             const e=await r.json().catch(()=>({error:'Erreur serveur'}));
             throw new Error(e.error||'Erreur '+r.status);
         }
     } catch(err) {
-        btn.disabled=false;txt.textContent='🔒 Payer et envoyer — ';
+        btn.disabled=false;txt.textContent='🛡 Commander mon analyse — ';
         showToast('❌ '+(err.message||'Erreur — contactez bunetnolan@gmail.com'),true);
     }
 }

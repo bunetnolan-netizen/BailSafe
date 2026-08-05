@@ -122,9 +122,9 @@ TYPES_DOCUMENT = ["Fiche de paie", "Avis d'imposition", "Contrat de travail", "A
 
 # Libellé affiché -> nombre de documents autorisés pour la formule
 FORMULES = {
-    "Essentiel (59 € — 1 document)": 1,
-    "Sécurisé (129 € — jusqu'à 2 documents)": 2,
-    "Dossier Complet (229 € — jusqu'à 4 documents)": 4,
+    "Essentiel (69 € — 1 document)": 1,
+    "Sécurisé (149 € — jusqu'à 2 documents)": 2,
+    "Dossier Complet (299 € — jusqu'à 4 documents)": 4,
 }
 
 

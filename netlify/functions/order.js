@@ -70,9 +70,9 @@ exports.handler = async (event) => {
   }
 
   const FORMULE_PRICES = {
-    "Essentiel — 1 document (59 €)": 59,
-    "Sécurisé — 2 documents (129 €)": 129,
-    "Dossier Complet — jusqu'à 4 documents (229 €)": 229
+    "Essentiel — 1 document (69 €)": 69,
+    "Sécurisé — 2 documents (149 €)": 149,
+    "Dossier Complet — jusqu'à 4 documents (299 €)": 299
   };
   const montant = FORMULE_PRICES[formule] || 59;
 
@@ -137,19 +137,29 @@ exports.handler = async (event) => {
 
     // Email confirmation client (non bloquant)
     try {
+      const paypalUrl = montant === 69 ? 'https://paypal.me/NolanBunet/69EUR'
+                      : montant === 149 ? 'https://paypal.me/NolanBunet/149EUR'
+                      : 'https://paypal.me/NolanBunet/299EUR';
       await sendBrevo({
         sender: { name: senderName, email: senderEmail },
         to: [{ email, name }],
-        subject: '✅ Votre commande BailSafe est confirmée',
+        subject: '✅ Votre commande BailSafe — en attente de paiement',
         htmlContent: `
           <h2>Merci ${escapeHtml(name)} !</h2>
-          <p>Votre commande <strong>${escapeHtml(formule || 'Essentiel')}</strong> a bien été reçue.</p>
-          <p><strong>Montant :</strong> ${montant} €</p>
+          <p>Votre commande <strong>${escapeHtml(formule || 'Essentiel')}</strong> a bien été enregistrée.</p>
+          <p><strong>Montant à régler :</strong> ${montant} €</p>
           <p><strong>Documents reçus :</strong> ${files.length} fichier(s)</p>
+          <div style="background:#FFF8E1;border:1px solid #F59E0B;border-radius:8px;padding:16px;margin:16px 0">
+            <p style="margin:0 0 8px"><strong>⚠ Paiement en attente</strong></p>
+            <p style="margin:0 0 12px;font-size:14px">Votre analyse débutera dès réception du paiement.</p>
+            <a href="${paypalUrl}" style="display:inline-block;background:#0070BA;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:700">🅿 Payer ${montant} € avec PayPal</a>
+            <p style="font-size:12px;color:#666;margin-top:8px">Carte bancaire acceptée — pas besoin de compte PayPal</p>
+          </div>
           <h3>Prochaines étapes</h3>
           <ol>
-            <li>Votre document est en cours d'analyse forensique</li>
-            <li>Vous recevrez votre rapport PDF sous <strong>24h</strong> à cette adresse</li>
+            <li>Payez via le bouton PayPal ci-dessus</li>
+            <li>Nolan confirme le paiement et lance l'analyse forensique</li>
+            <li>Vous recevez votre rapport PDF sous <strong>24h</strong> à cette adresse</li>
           </ol>
           <p>Besoin d'aide ? Répondez à cet email ou contactez <a href="mailto:bunetnolan@gmail.com">bunetnolan@gmail.com</a>.</p>
           <hr>
