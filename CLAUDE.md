@@ -158,15 +158,19 @@ date, ce qui a été fait, ce qui reste en TODO manuel pour Nolan. Garde chaque 
 
 ---
 
-### 5 août 2026
+### 5 août 2026 (session marathon)
 
-- **Nouveaux prix** : Essentiel 69 €, Sécurisé 149 €, Dossier Complet 299 € (scénario B validé par Nolan).
-- **Retour à PayPal** (paypal.me/NolanBunet) : le site annonçait « paiement CB » sans Stripe, corrigé.
-- **Tunnel de vente optimisé** : récap commande visible, urgence (délai 6h), garantie remboursement remontée, bouton reformulé (« Commander mon analyse »), barre de confiance, section « Comment ça marche » en 3 étapes.
-- **Email confirmation repensé** : bouton PayPal intégré, objet « en attente de paiement », lien de secours si le client ferme la page.
-- **Backend (order.js)** : FORMULE_PRICES → 69/149/299, PayPal URL dynamique dans l'email client.
-- **app_expert.py** : FORMULES → 69/149/299.
-- **Démo V3** servie et validée par Nolan. Tests : 27/27 ✅. Commit `ba3dd05`, push → déploiement auto Netlify.
+- **V3** (commits `ba3dd05`, `12b5b6d`, `325e5d4`, `1224b48`, `f15f45f`) : refonte complète.
+- **Prix** : Essentiel 69 €, Sécurisé 149 €, Dossier Complet 299 € (scénario B).
+- **Paiement** : retour à PayPal paypal.me/NolanBunet (Stripe n'était pas câblé).
+- **Tunnel de vente** : récap commande visible, urgence réaliste (« 24h, souvent le jour même »), garantie remboursement, barre de confiance, FAQ 10 questions, cas concrets (3 scénarios), filet indécis (email).
+- **Logo** : écusson loupe+dossier extrait d'une image source, fond blanc→transparent, positionné entre BAIL et SAFE (30px, gap 3px), navbar #1C2B29.
+- **Aperçu rapport** : simplifié — badge + verdict + tableau 4 critères + barre dégradé rouge→vert.
+- **Ton corporate** : « nous/équipe » partout, nom/ville uniquement dans les docs légaux obligatoires.
+- **Email confirmation** : bouton PayPal intégré, statut « en attente de paiement ».
+- **Backend** : order.js prix + email + ton corporate. app_expert.py FORMULES.
+- **Démo systématique** avant chaque commit sur localhost:8888.
+- **Tests** : 27/27 ✅.
 
 **TODO manuels :**
 - Définir le rôle du bot Telegram BailSafe (client et/ou admin).
