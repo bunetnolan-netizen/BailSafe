@@ -1,23 +1,69 @@
-// Reçoit la commande du formulaire index.html et l'envoie par email via Brevo (UE, Paris).
-// Clé API et email de notification lus depuis les variables d'environnement Netlify
-// (Site configuration > Environment variables) — jamais commités dans le code.
+// Fonction serverless Netlify — Reçoit la commande avec fichiers et relaie vers Brevo (UE, Paris).
+// Gère les uploads multipart/form-data (fichiers PDF joints au formulaire).
+// Clé API et config lues depuis les variables d'environnement Netlify — jamais commités.
+
+const BUSBOY_LIMITS = { fileSize: 10 * 1024 * 1024 }; // 10 Mo par fichier
 
 exports.handler = async (event) => {
+  // CORS preflight
+  if (event.httpMethod === 'OPTIONS') {
+    return {
+      statusCode: 204,
+      headers: {
+        'Access-Control-Allow-Origin': 'https://bail-safe.netlify.app',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type',
+      },
+    };
+  }
+
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: JSON.stringify({ error: 'Method not allowed' }) };
   }
 
-  let data;
-  try {
-    data = JSON.parse(event.body || '{}');
-  } catch {
-    return { statusCode: 400, body: JSON.stringify({ error: 'JSON invalide' }) };
+  // ── Parse multipart ou JSON ──
+  let fields = {}, files = [];
+
+  const contentType = event.headers['content-type'] || '';
+  if (contentType.includes('multipart/form-data')) {
+    try {
+      const Busboy = require('busboy');
+      const parsed = await new Promise((resolve, reject) => {
+        const bb = Busboy({ headers: event.headers, limits: BUSBOY_LIMITS });
+        const f = {}, fls = [];
+        bb.on('field', (name, val) => { f[name] = val; });
+        bb.on('file', (name, stream, info) => {
+          const chunks = [];
+          stream.on('data', chunk => chunks.push(chunk));
+          stream.on('end', () => {
+            fls.push({
+              fieldName: name,
+              filename: info.filename,
+              mimeType: info.mimeType,
+              buffer: Buffer.concat(chunks),
+              size: Buffer.concat(chunks).length,
+            });
+          });
+        });
+        bb.on('close', () => resolve({ fields: f, files: fls }));
+        bb.on('error', reject);
+        bb.end(Buffer.from(event.body, event.isBase64Encoded ? 'base64' : 'utf8'));
+      });
+      fields = parsed.fields;
+      files = parsed.files;
+    } catch (err) {
+      console.error('Erreur parsing multipart:', err);
+      return { statusCode: 400, body: JSON.stringify({ error: 'Formulaire invalide' }) };
+    }
+  } else {
+    try {
+      fields = JSON.parse(event.body || '{}');
+    } catch {
+      return { statusCode: 400, body: JSON.stringify({ error: 'JSON invalide' }) };
+    }
   }
 
-  const {
-    name, email, phone, formule, document_type, message,
-    gdpr_consent, gdpr_candidat_informe, retractation_renoncement
-  } = data;
+  const { name, email, phone, formule, document_type, message, gdpr_consent, gdpr_candidat_informe, retractation_renoncement } = fields;
 
   if (!name || !email || !document_type) {
     return { statusCode: 400, body: JSON.stringify({ error: 'Champs requis manquants' }) };
@@ -36,76 +82,89 @@ exports.handler = async (event) => {
   const notifEmail = process.env.BAILSAFE_NOTIF_EMAIL || 'bunetnolan@gmail.com';
 
   if (!apiKey || !senderEmail) {
-    console.error('Configuration manquante : BREVO_API_KEY ou BREVO_SENDER_EMAIL');
+    console.error('Config manquante : BREVO_API_KEY ou BREVO_SENDER_EMAIL');
     return { statusCode: 500, body: JSON.stringify({ error: 'Configuration serveur incomplète' }) };
   }
 
+  // ── Build file summary for email ──
+  let fileSummary = '<ul>';
+  if (files.length > 0) {
+    files.forEach(f => {
+      fileSummary += `<li>📄 ${escapeHtml(f.filename)} — ${(f.size / 1024).toFixed(0)} ko</li>`;
+    });
+  } else {
+    fileSummary += '<li>Aucun fichier joint au formulaire</li>';
+  }
+  fileSummary += '</ul>';
+
   const htmlContent = `
-    <h2>Nouvelle commande BailSafe</h2>
-    <p><strong>Formule :</strong> ${escapeHtml(formule || 'Non précisée')}</p>
+    <h2>🛡 Nouvelle commande BailSafe</h2>
+    <p><strong>Formule :</strong> ${escapeHtml(formule || 'Non précisée')} — ${montant} €</p>
     <p><strong>Nom :</strong> ${escapeHtml(name)}</p>
     <p><strong>Email :</strong> ${escapeHtml(email)}</p>
     <p><strong>Téléphone :</strong> ${escapeHtml(phone || 'Non renseigné')}</p>
     <p><strong>Document principal :</strong> ${escapeHtml(document_type)}</p>
     <p><strong>Message :</strong> ${escapeHtml(message || 'Aucune précision')}</p>
-    <p><strong>Consentement RGPD :</strong> ${escapeHtml(gdpr_consent || '')}</p>
-    <p><strong>Candidat informé (art. 14) :</strong> ${escapeHtml(gdpr_candidat_informe || '')}</p>
-    <p><strong>Renonciation rétractation :</strong> ${escapeHtml(retractation_renoncement || '')}</p>
+    <h3>Fichiers joints (${files.length})</h3>
+    ${fileSummary}
+    <hr>
+    <p><small>✅ Consentement RGPD : ${escapeHtml(gdpr_consent || '')}</small></p>
+    <p><small>✅ Candidat informé (art. 14) : ${escapeHtml(gdpr_candidat_informe || '')}</small></p>
+    <p><small>✅ Renonciation rétractation : ${escapeHtml(retractation_renoncement || '')}</small></p>
   `;
 
-  const sendBrevoEmail = (payload) =>
+  const sendBrevo = (payload) =>
     fetch('https://api.brevo.com/v3/smtp/email', {
       method: 'POST',
-      headers: {
-        'api-key': apiKey,
-        'Content-Type': 'application/json',
-        Accept: 'application/json'
-      },
+      headers: { 'api-key': apiKey, 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify(payload)
     });
 
   try {
-    const res = await sendBrevoEmail({
+    // Email notification Nolan
+    const res = await sendBrevo({
       sender: { name: senderName, email: senderEmail },
       to: [{ email: notifEmail }],
       replyTo: { email, name },
-      subject: `Nouvelle commande BailSafe — ${name}`,
+      subject: `🛡 Nouvelle commande BailSafe — ${name} (${montant} €)`,
       htmlContent
     });
-
     if (!res.ok) {
       const errText = await res.text();
-      console.error('Erreur Brevo (notification Nolan):', res.status, errText);
+      console.error('Erreur Brevo (notification):', res.status, errText);
       return { statusCode: 502, body: JSON.stringify({ error: 'Envoi impossible' }) };
     }
 
-    // Email de confirmation au client avec les prochaines étapes — filet de sécurité si
-    // le client ferme l'onglet avant d'avoir lu les instructions affichées à l'écran.
-    // Échec non bloquant : la commande est déjà enregistrée côté Nolan à ce stade.
+    // Email confirmation client (non bloquant)
     try {
-      const confirmRes = await sendBrevoEmail({
+      await sendBrevo({
         sender: { name: senderName, email: senderEmail },
         to: [{ email, name }],
-        subject: 'Votre commande BailSafe — 2 étapes restantes',
+        subject: '✅ Votre commande BailSafe est confirmée',
         htmlContent: `
-          <h2>Merci ${escapeHtml(name)}, votre demande est bien reçue !</h2>
-          <p>Formule choisie : <strong>${escapeHtml(formule || 'Essentiel')}</strong></p>
-          <p>Il vous reste 2 étapes pour lancer l'analyse :</p>
-          <p><strong>1. Payez ${montant} €</strong> via PayPal : <a href="https://paypal.me/NolanBunet/${montant}EUR">https://paypal.me/NolanBunet/${montant}EUR</a></p>
-          <p><strong>2. Envoyez vos documents</strong> à auditer par email à
-            <a href="mailto:bunetnolan@gmail.com?subject=Document%20à%20auditer%20-%20BailSafe">bunetnolan@gmail.com</a>,
-            en précisant le même nom que dans le formulaire (${escapeHtml(name)}).</p>
-          <p>Rapport livré sous 24h après réception du paiement <u>et</u> des documents.</p>
+          <h2>Merci ${escapeHtml(name)} !</h2>
+          <p>Votre commande <strong>${escapeHtml(formule || 'Essentiel')}</strong> a bien été reçue.</p>
+          <p><strong>Montant :</strong> ${montant} €</p>
+          <p><strong>Documents reçus :</strong> ${files.length} fichier(s)</p>
+          <h3>Prochaines étapes</h3>
+          <ol>
+            <li>Votre document est en cours d'analyse forensique</li>
+            <li>Vous recevrez votre rapport PDF sous <strong>24h</strong> à cette adresse</li>
+          </ol>
+          <p>Besoin d'aide ? Répondez à cet email ou contactez <a href="mailto:bunetnolan@gmail.com">bunetnolan@gmail.com</a>.</p>
+          <hr>
+          <p style="color:#6B6152;font-size:12px">BailSafe — Audit anti-fraude documentaire — Sainte-Rose, Guadeloupe</p>
         `
       });
-      if (!confirmRes.ok) {
-        console.error('Erreur Brevo (confirmation client):', confirmRes.status, await confirmRes.text());
-      }
-    } catch (err) {
-      console.error('Erreur envoi confirmation client:', err);
+    } catch (e) {
+      console.error('Erreur confirmation client:', e);
     }
 
-    return { statusCode: 200, body: JSON.stringify({ ok: true }) };
+    return {
+      statusCode: 200,
+      headers: { 'Access-Control-Allow-Origin': 'https://bail-safe.netlify.app' },
+      body: JSON.stringify({ ok: true, files: files.length })
+    };
   } catch (err) {
     console.error('Erreur fonction order:', err);
     return { statusCode: 500, body: JSON.stringify({ error: 'Erreur serveur' }) };
@@ -113,10 +172,5 @@ exports.handler = async (event) => {
 };
 
 function escapeHtml(str) {
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }

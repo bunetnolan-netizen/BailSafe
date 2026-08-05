@@ -47,7 +47,7 @@ Service d'audit anti-fraude documentaire pour propriétaires bailleurs. Le clien
 
 ### App Expert (interface d'analyse)
 - **Hébergeur :** Render
-- **URL :** https://[NOM-DU-SERVICE].onrender.com ← **à compléter**
+- **URL :** https://bailsafe-expert.onrender.com/
 - **Protection :** variable d'environnement `EXPERT_PASSWORD` à définir dans Render → Settings → Environment Variables
 - **Variables d'env requises sur Render :**
   - `EXPERT_PASSWORD` = [mot de passe choisi par Nolan]

@@ -155,3 +155,18 @@ date, ce qui a été fait, ce qui reste en TODO manuel pour Nolan. Garde chaque 
 - Vérifier le statut Brevo (Delayed → Delivered) — à confirmer par Nolan dans le dashboard.
 - Vérifier l'alerte de panne Render du 5 juillet et confirmer que `app_expert.py` fonctionne.
 - Finaliser le déploiement Render et renseigner son URL dans `BAILSAFE_CONTEXTE.md`.
+
+---
+
+### 19 juillet 2026
+
+- **Merge de la branche multi-docs dans `main`** : `origin/claude/project-analysis-tests-pt5vfj` fusionnée (commit `a34c60a`), push sur GitHub. L'analyse multi-documents (formules Sécurisé/Dossier Complet) est maintenant disponible sur `main`.
+- **Skill `bailsafe-dev` enrichi** : intégration de **Claude Code CLI** comme outil de délégation, tableau de décision vs Hermes sub-agents, 4 patterns concrets (merge, tests, review, bugfix). Nouvelle étape obligatoire : audit qualité final par Claude Code avant tout commit.
+- **GitHub Auth configurée** : Personal Access Token (scopes `repo` + `workflow`) stocké en credential store → Git push sans auth manuelle.
+- **Claude Code CLI authentifié** sur ce VPS (compte Pro, bunetnolan@gmail.com).
+
+**TODO manuels :**
+- Vérifier le statut Brevo (Delayed → Delivered) dans le dashboard.
+- Vérifier l'alerte panne Render du 5 juillet.
+- Finaliser l'URL Render dans `BAILSAFE_CONTEXTE.md`.
+- Définir le rôle du bot Telegram BailSafe (client et/ou admin).
