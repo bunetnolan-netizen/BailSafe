@@ -1,6 +1,6 @@
 # BailSafe — Fiche Contexte Projet
 
-**Dernière mise à jour :** 5 juillet 2026  
+**Dernière mise à jour :** 5 août 2026  
 **Créateur :** Nolan Bunet — bunetnolan@gmail.com — Sainte-Rose, Guadeloupe
 
 ---
@@ -10,11 +10,11 @@
 Service d'audit anti-fraude documentaire pour propriétaires bailleurs. Le client envoie un ou plusieurs documents (fiche de paie, avis d'imposition, contrat de travail, relevé bancaire) — BailSafe réalise une analyse forensique et renvoie un rapport PDF sous 24h.
 
 **Prix (3 formules depuis le 5 juillet 2026) :**
-- Essentiel — 59 € TTC (1 document)
-- Sécurisé — 129 € TTC (2 documents, cohérence croisée)
-- Dossier Complet — 229 € TTC (jusqu'à 4 documents, traitement prioritaire)
+- Essentiel — 69 € TTC (1 document)
+- Sécurisé — 149 € TTC (2 documents, cohérence croisée)
+- Dossier Complet — 299 € TTC (jusqu'à 4 documents, traitement prioritaire)
 
-**Paiement :** PayPal uniquement — paypal.me/NolanBunet (montant ajusté dynamiquement selon la formule choisie, ex. paypal.me/NolanBunet/129EUR)
+**Paiement :** PayPal — paypal.me/NolanBunet (montant variable : /69EUR, /149EUR, /299EUR)
 
 ---
 

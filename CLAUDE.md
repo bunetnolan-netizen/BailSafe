@@ -158,15 +158,16 @@ date, ce qui a été fait, ce qui reste en TODO manuel pour Nolan. Garde chaque 
 
 ---
 
-### 19 juillet 2026
+### 5 août 2026
 
-- **Merge de la branche multi-docs dans `main`** : `origin/claude/project-analysis-tests-pt5vfj` fusionnée (commit `a34c60a`), push sur GitHub. L'analyse multi-documents (formules Sécurisé/Dossier Complet) est maintenant disponible sur `main`.
-- **Skill `bailsafe-dev` enrichi** : intégration de **Claude Code CLI** comme outil de délégation, tableau de décision vs Hermes sub-agents, 4 patterns concrets (merge, tests, review, bugfix). Nouvelle étape obligatoire : audit qualité final par Claude Code avant tout commit.
-- **GitHub Auth configurée** : Personal Access Token (scopes `repo` + `workflow`) stocké en credential store → Git push sans auth manuelle.
-- **Claude Code CLI authentifié** sur ce VPS (compte Pro, bunetnolan@gmail.com).
+- **Nouveaux prix** : Essentiel 69 €, Sécurisé 149 €, Dossier Complet 299 € (scénario B validé par Nolan).
+- **Retour à PayPal** (paypal.me/NolanBunet) : le site annonçait « paiement CB » sans Stripe, corrigé.
+- **Tunnel de vente optimisé** : récap commande visible, urgence (délai 6h), garantie remboursement remontée, bouton reformulé (« Commander mon analyse »), barre de confiance, section « Comment ça marche » en 3 étapes.
+- **Email confirmation repensé** : bouton PayPal intégré, objet « en attente de paiement », lien de secours si le client ferme la page.
+- **Backend (order.js)** : FORMULE_PRICES → 69/149/299, PayPal URL dynamique dans l'email client.
+- **app_expert.py** : FORMULES → 69/149/299.
+- **Démo V3** servie et validée par Nolan. Tests : 27/27 ✅. Commit `ba3dd05`, push → déploiement auto Netlify.
 
 **TODO manuels :**
-- Vérifier le statut Brevo (Delayed → Delivered) dans le dashboard.
-- Vérifier l'alerte panne Render du 5 juillet.
-- Finaliser l'URL Render dans `BAILSAFE_CONTEXTE.md`.
 - Définir le rôle du bot Telegram BailSafe (client et/ou admin).
+- Créer un compte Stripe quand possible pour basculer vers du paiement CB intégré.
