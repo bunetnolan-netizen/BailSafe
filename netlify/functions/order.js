@@ -158,12 +158,12 @@ exports.handler = async (event) => {
           <h3>Prochaines étapes</h3>
           <ol>
             <li>Payez via le bouton PayPal ci-dessus</li>
-            <li>Nolan confirme le paiement et lance l'analyse forensique</li>
+            <li>Nous confirmons le paiement et lançons l'analyse forensique</li>
             <li>Vous recevez votre rapport PDF sous <strong>24h</strong> à cette adresse</li>
           </ol>
           <p>Besoin d'aide ? Répondez à cet email ou contactez <a href="mailto:bunetnolan@gmail.com">bunetnolan@gmail.com</a>.</p>
           <hr>
-          <p style="color:#6B6152;font-size:12px">BailSafe — Audit anti-fraude documentaire — Sainte-Rose, Guadeloupe</p>
+          <p style="color:#6B6152;font-size:12px">BailSafe — Audit anti-fraude documentaire</p>
         `
       });
     } catch (e) {

@@ -12,7 +12,9 @@
     <meta property="og:title" content="BailSafe | Détection de fraude documentaire pour bailleurs">
     <meta property="og:description" content="Analyse forensique de PDF pour détecter les faux dossiers de location. Paiement PayPal sécurisé. Rapport sous 24h, à partir de 69 € TTC.">
     <meta property="og:url" content="https://bail-safe.netlify.app/">
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='5' fill='%231C2B29'/%3E%3Cpath d='M12 3.5 L18.5 6 V11.5 C18.5 15.5 15.8 18.7 12 20.2 C8.2 18.7 5.5 15.5 5.5 11.5 V6 Z' fill='%23C9A94A'/%3E%3C/svg%3E">
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/favicon-180.png">
     <script type="application/ld+json">
     {"@context":"https://***@type":"Service","name":"BailSafe — Audit anti-fraude documentaire","description":"Analyse forensique de documents PDF pour détecter les falsifications.","provider":{"@type":"Person","name":"Nolan Bunet","email":"bunetnolan@gmail.com"},"areaServed":"FR","offers":{"@type":"AggregateOffer","priceCurrency":"EUR","lowPrice":"69","highPrice":"299","offerCount":"3"}}
     </script>
@@ -38,8 +40,8 @@
         /* NAV */
         nav { position: fixed; top: 0; width: 100%; z-index: 50; background: rgba(28,43,41,0.95); backdrop-filter: blur(10px); border-bottom: 1px solid rgba(169,184,178,0.12); }
         .nav-inner { max-width: 1400px; margin: 0 auto; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 64px; }
-        .logo { display: flex; align-items: center; gap: 8px; color: var(--text-on-ink); font-weight: 700; font-size: 20px; text-decoration: none; }
-        .logo .shield { color: var(--seal-light); font-size: 24px; }
+        .logo { display: flex; align-items: center; gap: 3px; color: var(--text-on-ink); font-weight: 700; font-size: 20px; text-decoration: none; }
+        .logo-avatar { height: 30px; width: auto; flex-shrink: 0; }
         .logo .mark { color: var(--seal-light); }
         .nav-links { display: none; gap: 28px; }
         .nav-links a { color: var(--text-on-ink-muted); text-decoration: none; font-size: 14px; font-weight: 500; transition: color 0.2s; }
@@ -240,7 +242,7 @@
 <!-- ═══════════ NAV ═══════════ -->
 <nav>
     <div class="nav-inner">
-        <a href="#" class="logo"><span class="shield">🛡</span> BAIL<span class="mark">SAFE</span></a>
+        <a href="#" class="logo">BAIL<img src="/avatar-nav.png" alt="BailSafe" class="logo-avatar">SAFE</a>
         <div class="nav-links">
             <a href="#comment">Comment ça marche</a>
             <a href="#pourquoi">Pourquoi</a>
@@ -294,6 +296,7 @@
     </div>
 
     <div class="trust-strip reveal">
+        <div class="trust-item"><span class="t-icon">👤</span> Analyse par un <strong>expert forensique</strong></div>
         <div class="trust-item"><span class="t-icon">🇫🇷</span> Hébergé en France</div>
         <div class="trust-item"><span class="t-icon">🔒</span> Données chiffrées</div>
         <div class="trust-item"><span class="t-icon">📋</span> Conforme RGPD</div>
@@ -421,15 +424,15 @@
         </div>
         <div class="faq-item reveal">
             <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">👤 Qui fait l'analyse ? <span class="faq-arrow">▾</span></div>
-            <div class="faq-a">L'analyse est réalisée par <strong>Nolan Bunet</strong>, basé à Sainte-Rose (Guadeloupe), avec des outils d'analyse forensique automatisés. Chaque rapport est vérifié humainement avant envoi. Vous pouvez le contacter directement à <a href="mailto:bunetnolan@gmail.com">bunetnolan@gmail.com</a>.</div>
+            <div class="faq-a">L'analyse est réalisée par <strong>notre équipe d'analystes forensiques</strong>, avec des outils d'analyse automatisés. Chaque rapport est vérifié avant envoi. Une question ? <a href="mailto:bunetnolan@gmail.com">bunetnolan@gmail.com</a>.</div>
         </div>
         <div class="faq-item reveal">
             <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">📋 Puis-je déduire le coût de mes impôts ? <span class="faq-arrow">▾</span></div>
             <div class="faq-a">Oui, selon votre régime fiscal. Les frais d'audit et de vérification liés à la gestion locative sont généralement déductibles de vos revenus fonciers. Consultez votre expert-comptable pour votre situation spécifique.</div>
         </div>
         <div class="faq-item reveal">
-            <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">🏠 Vous êtes basé en Guadeloupe, ça change quelque chose ? <span class="faq-arrow">▾</span></div>
-            <div class="faq-a">Rien. Le service est <strong>100% en ligne</strong>. Dépôt des documents, paiement, analyse, livraison du rapport : tout se fait par email et sur le site. Le fuseau horaire (-6h en été, -5h en hiver) n'impacte pas le délai de livraison.</div>
+            <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">📧 Comment se passe la livraison du rapport ? <span class="faq-arrow">▾</span></div>
+            <div class="faq-a">Le rapport est envoyé par email au format <strong>PDF</strong>. Il contient une synthèse claire avec votre score de risque, le détail des anomalies détectées, et nos recommandations. Vous pouvez le télécharger, l'imprimer, ou le transmettre directement.</div>
         </div>
     </div>
 </div></section>
@@ -515,7 +518,7 @@
 
             <div class="payment-note">
                 <p><strong>1.</strong> Vous payez <span id="paypalNoteAmount">69 €</span> via PayPal (lien ci-dessus).</p>
-                <p><strong>2.</strong> Nolan vérifie le paiement et lance l'analyse — <strong>livraison sous 24h, souvent le jour même</strong>.</p>
+                <p><strong>2.</strong> Nous vérifions le paiement et lançons l'analyse — <strong>livraison sous 24h, souvent le jour même</strong>.</p>
                 <p><strong>3.</strong> Vous recevez le rapport PDF par email. Un email de confirmation avec le récapitulatif vient de vous être envoyé.</p>
             </div>
 
@@ -538,7 +541,7 @@
         <a href="mailto:bunetnolan@gmail.com?subject=RGPD — Droit à l'oubli">Droit à l'oubli</a><span>·</span>
         <a href="mailto:bunetnolan@gmail.com">Contact</a>
     </div>
-    <p style="margin-top:12px;font-size:11px">bunetnolan@gmail.com · Sainte-Rose, Guadeloupe · SIRET : [À compléter]</p>
+    <p style="margin-top:12px;font-size:11px">bunetnolan@gmail.com · SIRET : [À compléter]</p>
     <p style="margin-top:4px;font-size:10px">© 2026 BailSafe. L'analyse forensique est un outil d'aide à la décision — aucune décision automatisée n'est prise sur les personnes (art. 22 RGPD).</p>
 </footer>
 
