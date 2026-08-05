@@ -175,25 +175,27 @@
         .footer-links a { color: var(--text-on-ink-muted); text-decoration: underline; cursor: pointer; }
         .footer-links a:hover { color: var(--text-on-ink); }
 
-        /* REPORT PREVIEW */
-        .report-preview { background: #fff; border: 1px solid var(--line); border-radius: 14px; max-width: 650px; margin: 60px auto 0; overflow: hidden; box-shadow: 0 4px 24px rgba(28,43,41,0.06); scroll-margin-top: 80px; }
-        .report-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 24px; background: #FFF5F5; border-bottom: 2px solid rgba(162,58,44,0.15); }
+        /* REPORT PREVIEW v2 — simple & lisible */
+        .report-preview { background: #fff; border: 1px solid var(--line); border-radius: 14px; max-width: 600px; margin: 60px auto 0; overflow: hidden; box-shadow: 0 4px 24px rgba(28,43,41,0.06); scroll-margin-top: 80px; }
+        .report-header { display: flex; align-items: center; padding: 16px 24px; background: #FFF5F5; border-bottom: 2px solid rgba(162,58,44,0.15); }
         .report-badge { background: var(--stamp); color: #fff; padding: 4px 14px; border-radius: 6px; font-size: 13px; font-weight: 700; letter-spacing: 1px; }
-        .report-ref { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); }
-        .report-body { display: flex; gap: 28px; padding: 28px 24px; align-items: flex-start; }
-        @media (max-width: 640px) { .report-body { flex-direction: column; align-items: center; text-align: center; } }
-        .report-score-section { text-align: center; flex-shrink: 0; }
-        .score-ring { position: relative; width: 120px; height: 120px; margin: 0 auto 8px; }
-        .score-ring svg { width: 120px; height: 120px; }
-        .score-number { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 32px; font-weight: 800; color: var(--stamp); line-height: 1; }
-        .score-number span { font-size: 14px; font-weight: 600; color: var(--text-muted); }
-        .score-label { font-size: 12px; color: var(--text-muted); font-weight: 600; margin-top: 4px; }
-        .report-findings { flex: 1; display: flex; flex-direction: column; gap: 10px; }
-        .finding { padding: 12px 16px; border-radius: 8px; font-size: 13px; line-height: 1.5; }
-        .finding.danger { background: #FFF5F5; border-left: 3px solid var(--stamp); color: var(--stamp); }
-        .finding.ok { background: var(--verified-soft); border-left: 3px solid var(--verified-light); color: var(--verified); }
-        .finding strong { font-size: 13px; }
-        .report-footer { display: flex; justify-content: space-between; padding: 10px 24px; background: var(--paper-2); font-size: 11px; color: var(--text-muted); gap: 16px; }
+        .report-meta { font-size: 12px; color: var(--text-muted); margin-left: auto; text-align: right; }
+        .report-body-simple { padding: 24px; }
+        .verdict-box { display: flex; gap: 14px; padding: 16px 18px; border-radius: 10px; margin-bottom: 20px; align-items: center; }
+        .verdict-box.danger-box { background: #FFF5F5; border: 1px solid rgba(162,58,44,0.2); }
+        .verdict-icon { font-size: 28px; flex-shrink: 0; }
+        .verdict-text strong { display: block; font-size: 15px; color: var(--ink); margin-bottom: 4px; }
+        .verdict-text span { font-size: 13px; color: var(--text-muted); line-height: 1.5; }
+        .audit-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        .audit-row td { padding: 12px 0; border-bottom: 1px solid var(--line); font-size: 14px; color: var(--ink); }
+        .audit-row td:last-child { text-align: right; }
+        .audit-badge { display: inline-block; padding: 3px 12px; border-radius: 5px; font-size: 12px; font-weight: 700; }
+        .audit-badge.fail { background: #FFF5F5; color: var(--stamp); }
+        .audit-badge.pass { background: var(--verified-soft); color: var(--verified); }
+        .audit-score-bar { position: relative; height: 32px; background: rgba(162,58,44,0.08); border-radius: 6px; overflow: hidden; }
+        .score-fill { height: 100%; background: linear-gradient(90deg, var(--stamp), #F59E0B, var(--verified-light)); border-radius: 6px; transition: width 1s; }
+        .score-text { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 13px; color: var(--ink); }
+        .report-footer { padding: 10px 24px; background: var(--paper-2); font-size: 11px; color: var(--text-muted); text-align: center; border-top: 1px solid var(--line); }
 
         /* REVEAL */
         .reveal { opacity: 0; transform: translateY(24px); transition: opacity 0.6s, transform 0.6s; }
@@ -224,6 +226,24 @@
         .faq-item.open .faq-a { max-height: 500px; padding: 0 8px 16px; }
         .faq-a a { color: var(--seal); text-decoration: underline; }
 
+        /* CAS CONCRETS */
+        .cases-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; }
+        .case-card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 28px; transition: transform 0.2s; }
+        .case-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(28,43,41,0.06); }
+        .case-icon { font-size: 36px; margin-bottom: 12px; }
+        .case-card h3 { font-size: 17px; font-weight: 700; color: var(--ink); margin-bottom: 8px; }
+        .case-scenario { font-size: 14px; color: var(--text-muted); line-height: 1.6; margin-bottom: 12px; }
+        .case-result { font-size: 12px; color: var(--verified); background: var(--verified-soft); padding: 8px 12px; border-radius: 6px; margin-bottom: 8px; }
+        .case-result span { font-weight: 700; }
+        .case-cost { font-size: 14px; color: var(--seal); font-weight: 600; }
+
+        /* HESITATION CATCHER */
+        .hesitation-box { max-width: 600px; margin: 48px auto 0; text-align: center; padding: 32px; background: var(--card); border: 2px dashed var(--line); border-radius: 12px; }
+        .hesitation-box h3 { font-size: 18px; color: var(--ink); margin-bottom: 8px; }
+        .hesitation-box p { font-size: 14px; color: var(--text-muted); margin-bottom: 16px; }
+        .btn-soft { display: inline-block; padding: 12px 28px; border-radius: 8px; font-weight: 600; font-size: 14px; text-decoration: none; border: 2px solid var(--seal-light); color: var(--seal); background: transparent; cursor: pointer; transition: all 0.2s; }
+        .btn-soft:hover { background: var(--seal-soft); }
+
         @media (max-width: 768px) {
             .form-section { padding: 20px; }
             .pricing-card.featured { transform: none; }
@@ -246,6 +266,7 @@
         <div class="nav-links">
             <a href="#comment">Comment ça marche</a>
             <a href="#pourquoi">Pourquoi</a>
+            <a href="#cas">Cas concrets</a>
             <a href="#tarifs">Tarifs</a>
             <a href="#faq">FAQ</a>
             <a href="#commander">Commander</a>
@@ -307,28 +328,29 @@
     <!-- APERÇU RAPPORT -->
     <div class="report-preview reveal" id="scanner">
         <div class="report-header">
-            <span class="report-badge">🔴 SUSPECT</span>
-            <span class="report-ref">Rapport #2026-0815</span>
+            <span class="report-badge">🔴 DOCUMENT SUSPECT</span>
+            <span class="report-meta">Analyse du 15/08/2026</span>
         </div>
-        <div class="report-body">
-            <div class="report-score-section">
-                <div class="score-ring">
-                    <svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="52" fill="none" stroke="rgba(162,58,44,0.15)" stroke-width="10"/><circle cx="60" cy="60" r="52" fill="none" stroke="#A23A2C" stroke-width="10" stroke-dasharray="326.7" stroke-dashoffset="19.6" stroke-linecap="round" transform="rotate(-90 60 60)" style="transition: stroke-dashoffset 2s"/></svg>
-                    <div class="score-number">94<span>/100</span></div>
+        <div class="report-body-simple">
+            <div class="verdict-box danger-box">
+                <div class="verdict-icon">⚠️</div>
+                <div class="verdict-text">
+                    <strong>Ce document présente 2 anomalies sur 4 critères.</strong>
+                    <span>Nous vous recommandons de demander des justificatifs complémentaires au candidat.</span>
                 </div>
-                <div class="score-label">Indice de risque</div>
             </div>
-            <div class="report-findings">
-                <div class="finding danger">⚠ <strong>Métadonnées suspectes</strong><br>Le document a été modifié avec Adobe Photoshop</div>
-                <div class="finding danger">⚠ <strong>Incohérence financière</strong><br>3 427 € d'écart entre le net déclaré et le cumul annuel</div>
-                <div class="finding ok">✓ <strong>Signature intacte</strong><br>Aucune modification détectée dans la structure</div>
-                <div class="finding ok">✓ <strong>Polices cohérentes</strong><br>Aucune police suspecte ou modifiée</div>
+            <table class="audit-table">
+                <tr class="audit-row fail"><td>📝 Authenticité du fichier</td><td><span class="audit-badge fail">Fichier retouché</span></td></tr>
+                <tr class="audit-row fail"><td>💰 Cohérence des revenus</td><td><span class="audit-badge fail">Écart de 3 427 €</span></td></tr>
+                <tr class="audit-row pass"><td>🔏 Intégrité numérique</td><td><span class="audit-badge pass">Aucune altération</span></td></tr>
+                <tr class="audit-row pass"><td>📄 Origine du document</td><td><span class="audit-badge pass">Conforme</span></td></tr>
+            </table>
+            <div class="audit-score-bar">
+                <div class="score-fill" style="width:34%"></div>
+                <span class="score-text">Indice de confiance : <strong>34%</strong></span>
             </div>
         </div>
-        <div class="report-footer">
-            <span>Analyse forensique · 100% automatique</span>
-            <span>⚠ Avis consultatif — art. 22 RGPD</span>
-        </div>
+        <div class="report-footer">Rapport généré automatiquement — résultat indicatif, décision finale vous appartient</div>
     </div>
 </div></section>
 
@@ -353,6 +375,37 @@
     </div>
     <p style="text-align:center;margin-top:32px;font-size:28px;font-weight:700;color:#EF4444">3 000 € de perte minimum</p>
     <p style="text-align:center;color:var(--text-on-ink-muted);font-size:14px">BailSafe coûte <strong style="color:var(--seal-light)">69 €</strong>. C'est 43× moins qu'un seul dossier frauduleux.</p>
+</div></section>
+
+<!-- ═══════════ CAS CONCRETS ═══════════ -->
+<section id="cas"><div class="section-inner">
+    <div class="section-label">Cas concrets</div>
+    <h2 class="section-title">3 fraudes typiques que BailSafe détecte</h2>
+    <p class="section-sub">Des situations réelles que nos clients auraient pu éviter.</p>
+
+    <div class="cases-grid">
+        <div class="case-card reveal">
+            <div class="case-icon">📄</div>
+            <h3>La fiche de paie retouchée</h3>
+            <p class="case-scenario">Un candidat modifie son net mensuel avec Photoshop. Visuellement parfait, mais la structure PDF trahit l'édition.</p>
+            <div class="case-result"><span>✅ Détecté par :</span> métadonnées suspectes + incohérence xref</div>
+            <div class="case-cost">💰 Économisé : <strong>14 400 €</strong> d'impayés potentiels</div>
+        </div>
+        <div class="case-card reveal">
+            <div class="case-icon">📑</div>
+            <h3>Le faux avis d'imposition</h3>
+            <p class="case-scenario">Un PDF généré de toute pièce avec des montants inventés. Le cumul imposable ne correspond pas au net mensuel déclaré.</p>
+            <div class="case-result"><span>✅ Détecté par :</span> incohérence mathématique (écart de 4 200 €)</div>
+            <div class="case-cost">💰 Économisé : <strong>9 600 €</strong> d'impayés + frais de justice</div>
+        </div>
+        <div class="case-card reveal">
+            <div class="case-icon">🔄</div>
+            <h3>Le même document pour deux candidats</h3>
+            <p class="case-scenario">Deux dossiers distincts contiennent exactement le même PDF. Un des deux candidats a réutilisé le document d'un tiers.</p>
+            <div class="case-result"><span>✅ Détecté par :</span> doublon SHA-256 + cohérence croisée</div>
+            <div class="case-cost">💰 Économisé : <strong>28 800 €</strong> (deux loyers × 18 mois)</div>
+        </div>
+    </div>
 </div></section>
 
 <!-- ═══════════ TARIFS ═══════════ -->
@@ -434,6 +487,13 @@
             <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">📧 Comment se passe la livraison du rapport ? <span class="faq-arrow">▾</span></div>
             <div class="faq-a">Le rapport est envoyé par email au format <strong>PDF</strong>. Il contient une synthèse claire avec votre score de risque, le détail des anomalies détectées, et nos recommandations. Vous pouvez le télécharger, l'imprimer, ou le transmettre directement.</div>
         </div>
+    </div>
+
+    <!-- HESITATION CATCHER -->
+    <div class="hesitation-box reveal">
+        <h3>🤔 Pas encore prêt à commander ?</h3>
+        <p>On comprend. Posez vos questions directement par email, on vous répond dans la journée.</p>
+        <a href="mailto:bunetnolan@gmail.com?subject=Question BailSafe" class="btn-soft">📧 Poser une question</a>
     </div>
 </div></section>
 
