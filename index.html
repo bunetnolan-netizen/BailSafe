@@ -541,12 +541,12 @@
 
             <div class="form-group"><label for="name">Votre nom *</label><input type="text" id="name" placeholder="Jean Dupont" required><div class="field-error-msg" id="err-name">Nom requis.</div></div>
             <div class="form-group"><label for="email">Votre email *</label><input type="email" id="email" placeholder="jean@exemple.com" required><div class="help">C'est à cette adresse que vous recevrez le rapport.</div><div class="field-error-msg" id="err-email">Email valide requis.</div></div>
-            <div class="form-group"><label for="phone">Téléphone (optionnel)</label><input type="tel" id="phone" placeholder="06 12 34 56 78"></div>
+            <div class="form-group"><label for="phone">Téléphone (facultatif)</label><input type="tel" id="phone" placeholder="06 12 34 56 78"></div>
             <div class="form-group"><label for="doctype">Type de document principal *</label>
                 <select id="doctype" required><option value="">— Sélectionnez —</option><option value="Fiche de paie">Fiche de paie</option><option value="Avis d'imposition">Avis d'imposition</option><option value="Contrat de travail">Contrat de travail</option><option value="Autre">Autre</option></select>
                 <div class="field-error-msg" id="err-doctype">Type de document requis.</div>
             </div>
-            <div class="form-group"><label for="message">Message (optionnel)</label><textarea id="message" placeholder="Précisions sur le dossier..."></textarea></div>
+            <div class="form-group"><label for="message">Message (facultatif)</label><textarea id="message" placeholder="Précisions sur le dossier..."></textarea></div>
 
             <div class="gdpr-checkbox"><input type="checkbox" id="gdpr_candidat"><label for="gdpr_candidat">Je confirme avoir informé le candidat locataire du traitement de ses données (RGPD art. 14) — <a href="#" onclick="openModal('modal-rgpd');return false">voir le modèle</a></label></div>
             <div class="gdpr-checkbox"><input type="checkbox" id="retractation"><label for="retractation">Je reconnais que le service débute immédiatement après paiement et renonce à mon droit de rétractation (art. L221-28 Code de la consommation)</label></div>
@@ -652,7 +652,7 @@
     <h3>1. Responsable de traitement</h3>
     <p>Nolan Bunet — BailSafe — Sainte-Rose, Guadeloupe — bunetnolan@gmail.com</p>
     <h3>2. Données collectées</h3>
-    <p>Dans le cadre d'une commande : nom, email, téléphone (optionnel), type de document, fichiers PDF transmis. <strong>Aucun cookie, aucun tracking, aucun profil.</strong></p>
+    <p>Dans le cadre d'une commande : nom, email, téléphone (facultatif), type de document, fichiers PDF transmis. <strong>Aucun cookie, aucun tracking, aucun profil.</strong></p>
     <h3>3. Finalités</h3>
     <ul><li>Exécution du contrat : traitement de la commande, analyse, envoi du rapport</li><li>Intérêt légitime : prévention de la fraude dans le cadre d'un bail</li><li>Obligation légale : conservation des données comptables (10 ans)</li></ul>
     <h3>4. Destinataires</h3>
@@ -698,7 +698,7 @@ let selectedFormule = null, uploadedFiles = [];
 
 function selectFormule(key) {
     selectedFormule = key;
-    document.getElementById('formule').value = FORMULES[key].label;
+    document.getElementById('formule').value = key;
     document.getElementById('formule').classList.remove('field-error');
     document.getElementById('err-formule').classList.remove('show');
     document.getElementById('submitPrice').textContent = FORMULES[key].price + ' €';
@@ -706,8 +706,8 @@ function selectFormule(key) {
     document.getElementById('commander').scrollIntoView({behavior:'smooth',block:'start'});
 }
 document.getElementById('formule').addEventListener('change', function() {
-    for (const [k,f] of Object.entries(FORMULES)) if (f.label===this.value) selectedFormule=k;
-    if (selectedFormule) {
+    selectedFormule = this.value;
+    if (selectedFormule && FORMULES[selectedFormule]) {
         document.getElementById('submitPrice').textContent = FORMULES[selectedFormule].price + ' €';
         updateRecap(selectedFormule);
     }
