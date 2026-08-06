@@ -79,7 +79,7 @@ exports.handler = async (event) => {
   const apiKey = process.env.BREVO_API_KEY;
   const senderEmail = process.env.BREVO_SENDER_EMAIL;
   const senderName = process.env.BREVO_SENDER_NAME || 'BailSafe';
-  const notifEmail = process.env.BAILSAFE_NOTIF_EMAIL || 'contact.bailsafe@gmail.com';
+  const notifEmail = process.env.BAILSAFE_NOTIF_EMAIL || 'bunetnolan@gmail.com';
 
   if (!apiKey || !senderEmail) {
     console.error('Config manquante : BREVO_API_KEY ou BREVO_SENDER_EMAIL');
@@ -161,7 +161,7 @@ exports.handler = async (event) => {
             <li>Nous confirmons le paiement et lançons l'analyse forensique</li>
             <li>Vous recevez votre rapport PDF sous <strong>24h</strong> à cette adresse</li>
           </ol>
-          <p>Besoin d'aide ? Répondez à cet email ou contactez <a href="mailto:contact.bailsafe@gmail.com">contact.bailsafe@gmail.com</a>.</p>
+          <p>Besoin d'aide ? Répondez à cet email ou contactez <a href="mailto:bunetnolan@gmail.com">bunetnolan@gmail.com</a>.</p>
           <hr>
           <p style="color:#6B6152;font-size:12px">BailSafe — Audit anti-fraude documentaire</p>
         `
